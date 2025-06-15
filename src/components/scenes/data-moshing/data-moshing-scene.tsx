@@ -1,11 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import * as THREE from "three";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { setupVisibilityChangeDetection } from "@/components/utils/eventUtils";
-import { PerformanceMonitor, Environment } from "@react-three/drei";
-import { Perf } from "r3f-perf";
-
-import { DataMoshingPostProcessing } from "./post-processing";
+import { useFrame, useThree } from "@react-three/fiber";
 
 /**
  * Component for a shape that morphs between different geometries
@@ -67,7 +62,11 @@ export const MorphingShape = () => {
  * Camera controller component that handles camera rotation
  */
 
-export const CameraController = () => {
+interface CameraControllerProps {
+  autoRotate?: boolean;
+}
+
+export const CameraController = ({ autoRotate = false }: CameraControllerProps) => {
   const { camera } = useThree();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [touchPosition, setTouchPosition] = useState({ x: 0, y: 0 });
@@ -77,6 +76,8 @@ export const CameraController = () => {
   const lastMouseMoveTime = useRef(0);
   const mouseIdleTimeout = 2000;
   const centralPoint = useMemo(() => new THREE.Vector3(0, 1.5, 0), []);
+  const isInitialized = useRef(false);
+  const initializationTime = useRef(0);
 
   const movement = useRef({
     forward: false,
@@ -201,8 +202,12 @@ export const CameraController = () => {
     window.addEventListener("touchstart", handleMouseClick); // Add click listener
     window.addEventListener("touchend", handleMouseClick2); // Add click listener
 
-    if (camera) {
-      camera.lookAt(centralPoint);
+    if (camera && !isInitialized.current) {
+      // Set initial camera rotation more gently
+      const direction = new THREE.Vector3().subVectors(centralPoint, camera.position).normalize();
+      camera.lookAt(camera.position.clone().add(direction));
+      isInitialized.current = true;
+      initializationTime.current = Date.now();
     }
 
     return () => {
@@ -221,6 +226,13 @@ export const CameraController = () => {
   useFrame((state) => {
     if (camera) {
       const currentTime = Date.now();
+      const timeSinceInit = currentTime - initializationTime.current;
+      
+      // Don't start automatic behavior immediately - wait 2 seconds after initialization
+      if (timeSinceInit < 2000) {
+        return;
+      }
+      
       if (currentTime - lastMouseMoveTime.current > mouseIdleTimeout) {
         isMouseMoving.current = false;
       }
@@ -233,7 +245,7 @@ export const CameraController = () => {
       let targetRotationX, targetRotationY;
 
       if (
-        !isMouseOnScreen.current &&
+        autoRotate &&
         !isMouseMoving.current &&
         !isTouchMoving.current
       ) {
@@ -251,10 +263,14 @@ export const CameraController = () => {
           maxRotationY,
           (noiseY + 1) * 0.5,
         );
-      } else {
+      } else if (isMouseMoving.current || isTouchMoving.current) {
         const position = isTouchMoving.current ? touchPosition : mousePosition;
         targetRotationY = position.x * 0.5;
         targetRotationX = -position.y * 0.3;
+      } else {
+        // Keep current rotation when auto-rotate is disabled and no user input
+        targetRotationX = camera.rotation.x;
+        targetRotationY = camera.rotation.y;
       }
 
       camera.rotation.y += (targetRotationY - camera.rotation.y) * 0.05;
@@ -304,118 +320,4 @@ export const CameraController = () => {
 
   // UI Elements
   return null;
-};
-
-/**
- * Environment controller component that cycles between environments
- */
-const EnvironmentController = () => {
-  const [currentEnv, setCurrentEnv] = useState(0);
-  const environments = [
-    "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/peppermint_powerplant_1k.hdr",
-    // "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/brown_photostudio_01_1k.hdr"
-  ];
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentEnv((prev) => (prev + 1) % environments.length);
-    }, 11000);
-
-    return () => clearInterval(interval);
-  }, [environments.length]);
-
-  // Removed the useFrame hook that was updating rotation
-
-  return (
-    <Environment
-      background={true}
-      files={environments[currentEnv]}
-      ground={{
-        height: 4,
-        radius: 10,
-        scale: 10,
-      }}
-      environmentRotation={[0, 0, 0]}
-    />
-  );
-};
-
-/**
- * Main scene component that orchestrates all 3D elements
- * Sets up the canvas, camera, lighting, and all scene objects
- */
-export const DataMoshingScene = () => {
-  // State for performance monitoring
-  const [showPerf] = useState(false);
-  const [, setFrameloop] = useState<"always" | "never">("always");
-
-  // Handle visibility change to pause rendering when tab is not visible
-  useEffect(() => {
-    const cleanup = setupVisibilityChangeDetection((isVisible) => {
-      setFrameloop(isVisible ? "always" : "never");
-    });
-
-    return cleanup;
-  }, []);
-
-  return (
-    <Canvas
-      flat
-      className="select-none"
-      dpr={1}
-      camera={{
-        near: 0.1,
-        far: 90,
-        position: [0, 0.8, 2],
-        // fov: cameraControls.fov,
-        // zoom: cameraControls.zoom,
-      }}
-      gl={{
-        powerPreference: "high-performance",
-        antialias: false,
-        stencil: false,
-        depth: false,
-        outputColorSpace: THREE.SRGBColorSpace,
-      }}
-      onCreated={(state) => {
-        // state.gl.autoClear = false;
-
-        state.camera.lookAt(0, 1.5, 0);
-      }}
-    >
-      {showPerf && <Perf position="bottom-right" />}
-
-      {/* Environment map with projected background */}
-      <EnvironmentController />
-
-      {/* Camera controller */}
-      <CameraController />
-      {/* <OrbitControls /> */}
-
-      {/* Morphing shapes */}
-      <MorphingShape />
-
-      {/* Performance monitoring */}
-      <PerformanceMonitor
-        flipflops={1}
-        iterations={5}
-        ms={100}
-        threshold={0.5}
-        bounds={() => [30, 500]}
-        onDecline={() => {}}
-      />
-
-      {/* Camera flash directional light */}
-      <pointLight
-        position={[0, 0, 5]}
-        intensity={150}
-        distance={5.4}
-        color="#ffffff"
-        castShadow
-      />
-
-      {/* Post-processing effects */}
-      <DataMoshingPostProcessing />
-    </Canvas>
-  );
 };

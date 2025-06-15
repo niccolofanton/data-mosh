@@ -14,6 +14,10 @@ export interface DataMoshOptions {
   buttonPressed?: boolean;
   lastButtonReleaseTime?: number;
   debugMode?: boolean;
+  corruptionChunkCount?: number;
+  corruptionStrength?: number;
+  corruptionSpeed?: number;
+  corruptionSets?: number;
 }
 
 export interface UpdateOptions {
@@ -24,6 +28,10 @@ export interface UpdateOptions {
   buttonPressed?: boolean;
   lastButtonReleaseTime?: number;
   debugMode?: boolean;
+  corruptionChunkCount?: number;
+  corruptionStrength?: number;
+  corruptionSpeed?: number;
+  corruptionSets?: number;
 }
 
 /**
@@ -52,6 +60,10 @@ export class DataMoshEffect extends Effect {
     buttonPressed = false,
     lastButtonReleaseTime = 0,
     debugMode = false,
+    corruptionChunkCount = 5,
+    corruptionStrength = 1.1,
+    corruptionSpeed = 200.0,
+    corruptionSets = 30.0,
   }: DataMoshOptions) {
     // Definizione degli uniform per lo shader
     const uniforms = new Map<string, THREE.Uniform>([
@@ -66,6 +78,10 @@ export class DataMoshEffect extends Effect {
       ["buttonPressed", new THREE.Uniform(buttonPressed)],
       ["lastButtonReleaseTime", new THREE.Uniform(lastButtonReleaseTime)],
       ["debugMode", new THREE.Uniform(debugMode)],
+      ["corruptionChunkCount", new THREE.Uniform(corruptionChunkCount)],
+      ["corruptionStrength", new THREE.Uniform(corruptionStrength)],
+      ["corruptionSpeed", new THREE.Uniform(corruptionSpeed)],
+      ["corruptionSets", new THREE.Uniform(corruptionSets)],
     ]);
 
     // Inizializzazione dell'effetto base con lo shader GLSL
@@ -184,6 +200,10 @@ export class DataMoshEffect extends Effect {
       buttonPressed,
       lastButtonReleaseTime,
       debugMode,
+      corruptionChunkCount,
+      corruptionStrength,
+      corruptionSpeed,
+      corruptionSets,
     } = options;
 
     if (fadeDuration !== undefined) {
@@ -200,6 +220,22 @@ export class DataMoshEffect extends Effect {
 
     if (lastButtonReleaseTime !== undefined) {
       this.uniforms.get("lastButtonReleaseTime")!.value = lastButtonReleaseTime;
+    }
+
+    if (corruptionChunkCount !== undefined) {
+      this.uniforms.get("corruptionChunkCount")!.value = corruptionChunkCount;
+    }
+
+    if (corruptionStrength !== undefined) {
+      this.uniforms.get("corruptionStrength")!.value = corruptionStrength;
+    }
+
+    if (corruptionSpeed !== undefined) {
+      this.uniforms.get("corruptionSpeed")!.value = corruptionSpeed;
+    }
+
+    if (corruptionSets !== undefined) {
+      this.uniforms.get("corruptionSets")!.value = corruptionSets;
     }
 
     if (

@@ -3,8 +3,8 @@ import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer, RenderPass } from "postprocessing";
 import { useControls } from "leva";
-import { BlendFunction } from "postprocessing";
 import { DataMoshManager } from "./data-mosh-stuff/DataMoshManager";
+import { BlendFunction } from "postprocessing";
 
 /**
  * Component that manages all post-processing effects
@@ -20,42 +20,63 @@ export const DataMoshingPostProcessing = () => {
 
   // Button pressed state
   const [lastButtonReleaseTime, setLastButtonReleaseTime] = useState(-1);
-  const [buttonPressed, setButtonPressed] = useState(true);
+  const [buttonPressed, setButtonPressed] = useState(false);
 
   const dataMoshManager = useRef<DataMoshManager | null>(null);
 
   // Controls
   const {
-    trailEnabled,
     fadeDuration,
-    trailResolutionScale,
-    trailBlendFunction,
-    debugMode,
-  } = useControls("Post Processing/Persistence", {
-    trailEnabled: { value: true, label: "Enable Trail" },
+  } = useControls("🎥 Trail Effect", {
     fadeDuration: {
       value: 370,
       min: 1,
       max: 2000,
       step: 1,
-      label: "Fade Duration",
+      label: "Fade Duration (ms)",
     },
-    trailResolutionScale: {
-      value: 0.5,
-      min: 0.1,
-      max: 1.0,
+  });
+
+  // Corruption controls
+  const {
+    enableDataCorruption,
+    corruptionChunkCount,
+    corruptionStrength,
+    corruptionSpeed,
+    corruptionSets,
+  } = useControls("💥 Data Corruption", {
+    enableDataCorruption: {
+      value: true,
+      label: "Enable Data Corruption",
+    },
+    corruptionChunkCount: {
+      value: 5,
+      min: 1,
+      max: 200,
+      step: 1,
+      label: "Corruption Areas",
+    },
+    corruptionStrength: {
+      value: 1.1,
+      min: 0.0,
+      max: 2.0,
       step: 0.1,
-      label: "Resolution Scale",
+      label: "Intensity",
     },
-    trailBlendFunction: {
-      value: BlendFunction.NORMAL,
-      options: {
-        SKIP: BlendFunction.SKIP,
-        ADD: BlendFunction.ADD,
-      },
-      label: "Blend Function",
+    corruptionSpeed: {
+      value: 200.0,
+      min: 1.0,
+      max: 1000.0,
+      step: 1.0,
+      label: "Animation Speed",
     },
-    debugMode: { value: true, label: "Debug Frames" },
+    corruptionSets: {
+      value: 30.0,
+      min: 1.0,
+      max: 150.0,
+      step: 1.0,
+      label: "Pattern Variety",
+    },
   });
 
   // Keyboard event handlers
@@ -76,12 +97,6 @@ export const DataMoshingPostProcessing = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
-
-    // Initial state setup
-    setTimeout(() => {
-      setButtonPressed(false);
-      setLastButtonReleaseTime(performance.now());
-    }, 500);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
@@ -106,22 +121,27 @@ export const DataMoshingPostProcessing = () => {
     if (dataMoshManager.current) {
       dataMoshManager.current.updateOptions({
         fadeDuration: fadeDuration,
-        effectEnabled: trailEnabled,
-        resolutionScale: trailResolutionScale,
-        blendFunction: trailBlendFunction,
+        effectEnabled: true,
+        resolutionScale: 0.5,
+        blendFunction: BlendFunction.NORMAL,
         buttonPressed: buttonPressed,
         lastButtonReleaseTime: lastButtonReleaseTime,
-        debugMode: debugMode,
+        debugMode: false,
+        corruptionChunkCount: enableDataCorruption ? corruptionChunkCount : 0,
+        corruptionStrength: enableDataCorruption ? corruptionStrength : 0.0,
+        corruptionSpeed: corruptionSpeed,
+        corruptionSets: corruptionSets,
       });
     }
   }, [
     fadeDuration,
-    trailEnabled,
-    trailResolutionScale,
-    trailBlendFunction,
     buttonPressed,
     lastButtonReleaseTime,
-    debugMode,
+    enableDataCorruption,
+    corruptionChunkCount,
+    corruptionStrength,
+    corruptionSpeed,
+    corruptionSets,
   ]);
 
   // Setup effect composer and passes
@@ -136,11 +156,15 @@ export const DataMoshingPostProcessing = () => {
 
     const options = {
       effectAmount: fadeDuration,
-      effectEnabled: trailEnabled,
-      resolutionScale: trailResolutionScale,
-      blendFunction: trailBlendFunction,
+      effectEnabled: true,
+      resolutionScale: 0.5,
+      blendFunction: BlendFunction.NORMAL,
       camera: camera,
-      debugMode: debugMode,
+      debugMode: false,
+      corruptionChunkCount: enableDataCorruption ? corruptionChunkCount : 0,
+      corruptionStrength: enableDataCorruption ? corruptionStrength : 0.0,
+      corruptionSpeed: corruptionSpeed,
+      corruptionSets: corruptionSets,
     };
 
     dataMoshManager.current = new DataMoshManager(
@@ -152,12 +176,13 @@ export const DataMoshingPostProcessing = () => {
   }, [
     scene,
     camera,
-    trailEnabled,
     fadeDuration,
-    trailResolutionScale,
-    trailBlendFunction,
     gl,
-    debugMode,
+    enableDataCorruption,
+    corruptionChunkCount,
+    corruptionStrength,
+    corruptionSpeed,
+    corruptionSets,
   ]);
 
   // Setup frame processing per tutti i tipi di frame
@@ -178,6 +203,11 @@ export const DataMoshingPostProcessing = () => {
 
     if (composerRef.current) {
       composerRef.current.render();
+    }
+
+    // Process frames using the DataMoshManager with current time
+    if (dataMoshManager.current) {
+      dataMoshManager.current.processFrames(performance.now());
     }
   }, 1);
 

@@ -10,6 +10,7 @@ import {
   cleanupFrameResources,
   createFrameRefs,
   setupFrameProcessing,
+  processFrameWithTiming,
 } from "./frame-processing";
 import {
   DataMoshEffect,
@@ -51,9 +52,7 @@ export class DataMoshManager {
     composer.addPass(iFramePass);
 
     // Add depth copy pass
-    const depthCopyPass = new DepthCopyPass({
-      depthPacking: THREE.BasicDepthPacking,
-    });
+    const depthCopyPass = new DepthCopyPass({depthPacking: THREE.BasicDepthPacking});
     this.depthFramePassRef = depthCopyPass;
     composer.addPass(depthCopyPass);
 
@@ -140,6 +139,60 @@ export class DataMoshManager {
     );
   }
 
+  // Process frames using useFrame timing (to be called from useFrame hook)
+   processFrames(currentTime: number) {
+    if (!this.options.effectEnabled) return;
+
+    const frameConfigs = [
+      {
+        refs: this.pFrameRefs,
+        passRef: this.pFramePassRef,
+        textureRef: this.pFrameTextureRef,
+        name: "pFrame",
+        setTexture: (texture: THREE.Texture) =>
+          this.dataMoshEffectRef.setPFrameTexture(texture),
+      },
+      {
+        refs: this.depthFrameRefs,
+        passRef: this.depthFramePassRef,
+        textureRef: this.depthFrameTextureRef,
+        name: "depthFrame",
+        setTexture: (texture: THREE.Texture) =>
+          this.dataMoshEffectRef.setDFrameTexture(texture),
+      },
+    ];
+
+    // Process P and depth frames with timing control
+    frameConfigs.forEach((config) => {
+      processFrameWithTiming(
+        currentTime,
+        this.gl,
+        config.refs,
+        config.passRef,
+        config.textureRef,
+        config.setTexture,
+        this.options,
+        this.dataMoshEffectRef,
+        config.name,
+      );
+    });
+
+    // Process I-frame immediately when button is pressed (no timing delay)
+    if (this.options.buttonPressed) {
+      processFrameWithTiming(
+        currentTime,
+        this.gl,
+        this.iFrameRefs,
+        this.iFramePassRef,
+        this.iFrameTextureRef,
+        (texture: THREE.Texture) => this.dataMoshEffectRef.setIframeTexture(texture),
+        { ...this.options, buttonPressed: true }, // Always process I-frame when button is pressed
+        this.dataMoshEffectRef,
+        "iFrame",
+      );
+    }
+  }
+
   updateOptions(options: UpdateOptions) {
     this.dataMoshEffectRef.updateOptions(options);
 
@@ -167,6 +220,18 @@ export class DataMoshManager {
       if (!options.debugMode) {
         this.removeDebugCanvases();
       }
+    }
+    if (options.corruptionChunkCount != this.options.corruptionChunkCount) {
+      this.options.corruptionChunkCount = options.corruptionChunkCount;
+    }
+    if (options.corruptionStrength != this.options.corruptionStrength) {
+      this.options.corruptionStrength = options.corruptionStrength;
+    }
+    if (options.corruptionSpeed != this.options.corruptionSpeed) {
+      this.options.corruptionSpeed = options.corruptionSpeed;
+    }
+    if (options.corruptionSets != this.options.corruptionSets) {
+      this.options.corruptionSets = options.corruptionSets;
     }
 
     if (this.cleanupFunctions && options.effectEnabled === false) {

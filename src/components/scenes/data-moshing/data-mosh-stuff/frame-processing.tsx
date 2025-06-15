@@ -10,8 +10,9 @@ export interface FrameRefs {
   orthoCamera: THREE.OrthographicCamera | null;
   material: THREE.MeshBasicMaterial | null;
   plane: THREE.Mesh | null;
-  timer: NodeJS.Timeout | null;
   canvas: HTMLCanvasElement | null;
+  lastCaptureTime: number;
+  captureInterval: number;
 }
 
 // Create frame references
@@ -21,8 +22,9 @@ export const createFrameRefs = (): FrameRefs => ({
   orthoCamera: null,
   material: null,
   plane: null,
-  timer: null,
   canvas: null,
+  lastCaptureTime: 0,
+  captureInterval: 16, // Default 16ms interval
 });
 
 // Initialize frame resources
@@ -112,7 +114,57 @@ export const processFrameTexture = (
   }
 };
 
-// Setup frame processing
+// Check if frame should be captured based on timing
+export const shouldCaptureFrame = (frameRefs: FrameRefs, currentTime: number): boolean => {
+  return currentTime - frameRefs.lastCaptureTime >= frameRefs.captureInterval;
+};
+
+// Update frame capture timing
+export const updateFrameCaptureTime = (frameRefs: FrameRefs, currentTime: number): void => {
+  frameRefs.lastCaptureTime = currentTime;
+};
+
+// Process frame with timing control (to be called from useFrame)
+export const processFrameWithTiming = (
+  currentTime: number,
+  gl: THREE.WebGLRenderer,
+  frameRefs: FrameRefs,
+  passRef: CopyPass | DepthCopyPass | null,
+  textureRef: THREE.Texture | undefined,
+  setTextureMethod: (texture: THREE.Texture) => void,
+  option: DataMoshOptions,
+  trailEffectRef?: object,
+  frameName?: string,
+): THREE.Texture | undefined => {
+  // Only capture if enough time has passed and button is pressed
+  if (!shouldCaptureFrame(frameRefs, currentTime) || !option.buttonPressed) {
+    return undefined;
+  }
+
+  // Update capture time
+  updateFrameCaptureTime(frameRefs, currentTime);
+
+  // Process the frame
+  const newTexture = processFrameTexture(
+    gl,
+    frameRefs,
+    passRef,
+    textureRef,
+    setTextureMethod,
+    option.buttonPressed,
+    trailEffectRef,
+    option.debugMode,
+  );
+
+  // Add debug canvas if needed
+  if (newTexture && !frameRefs.canvas && option.debugMode && frameName) {
+    frameRefs.canvas = addDebugCanvas(newTexture, frameName);
+  }
+
+  return newTexture;
+};
+
+// Setup frame processing (no longer uses setInterval)
 export const setupFrameProcessing = (
   gl: THREE.WebGLRenderer,
   frameRefs: FrameRefs,
@@ -126,43 +178,35 @@ export const setupFrameProcessing = (
 ) => {
   if (!passRef?.texture) return;
 
+  // Set the capture interval for this frame type
+  if (interval > 0) {
+    frameRefs.captureInterval = interval;
+  }
+
   initializeFrameResources(frameRefs, passRef.texture);
 
-  const processTexture = () => {
-    if (option.buttonPressed) {
-      return processFrameTexture(
-        gl,
-        frameRefs,
-        passRef,
-        textureRef,
-        setTextureMethod,
-        option.buttonPressed,
-        trailEffectRef,
-        option.debugMode,
-      );
+  // Initial capture if button is pressed
+  if (option.buttonPressed) {
+    const newTexture = processFrameTexture(
+      gl,
+      frameRefs,
+      passRef,
+      textureRef,
+      setTextureMethod,
+      option.buttonPressed,
+      trailEffectRef,
+      option.debugMode,
+    );
+
+    if (newTexture && !frameRefs.canvas && option.debugMode) {
+      frameRefs.canvas = addDebugCanvas(newTexture, frameName);
     }
+  }
+
+  // Return cleanup function (no more timer to clean up)
+  return () => {
+    // No timer cleanup needed anymore
   };
-
-  const newTexture = processTexture();
-
-  if (newTexture && !frameRefs.canvas && option.debugMode) {
-    frameRefs.canvas = addDebugCanvas(newTexture, frameName);
-  }
-
-  if (interval) {
-    if (frameRefs.timer) {
-      clearInterval(frameRefs.timer);
-    }
-
-    frameRefs.timer = setInterval(processTexture, interval);
-
-    return () => {
-      if (frameRefs.timer) {
-        clearInterval(frameRefs.timer);
-        frameRefs.timer = null;
-      }
-    };
-  }
 };
 
 // Cleanup frame resources
