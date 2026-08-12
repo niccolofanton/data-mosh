@@ -1,0 +1,23 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Source of truth for og-image.png. Regenerate with:
+       rsvg-convert -w 1200 -h 630 public/og-image.svg -o public/og-image.png -->
+  <rect width="1200" height="630" fill="#000000"/>
+
+  <!-- Glitch / datamosh corruption bands -->
+  <rect x="0" y="86" width="470" height="26" fill="#FF0080" opacity="0.85"/>
+  <rect x="60" y="140" width="300" height="14" fill="#00FF80" opacity="0.85"/>
+  <rect x="0" y="540" width="620" height="18" fill="#FF4000" opacity="0.85"/>
+  <rect x="120" y="580" width="240" height="26" fill="#8000FF" opacity="0.85"/>
+  <rect x="820" y="40" width="380" height="22" fill="#8000FF" opacity="0.85"/>
+  <rect x="1010" y="250" width="190" height="40" fill="#FF0080" opacity="0.85"/>
+  <rect x="700" y="560" width="500" height="16" fill="#00FF80" opacity="0.85"/>
+  <rect x="0" y="0" width="1200" height="4" fill="#FF4000"/>
+  <rect x="0" y="626" width="1200" height="4" fill="#00FF80"/>
+
+  <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+    <text x="90" y="270" fill="#FFFFFF" font-size="96" font-weight="bold" letter-spacing="-3">Data Moshing</text>
+    <text x="90" y="370" fill="#FF0080" font-size="96" font-weight="bold" letter-spacing="-3">Demo</text>
+    <text x="90" y="432" fill="#B3B3B3" font-size="34">Real-time WebGL glitch effects</text>
+    <text x="90" y="482" fill="#00FF80" font-size="28">niccolofanton.dev</text>
+  </g>
+</svg>

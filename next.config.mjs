@@ -14,7 +14,12 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: false,
+    // Next 14 cannot discover ESLint 9 flat config (`eslint.config.mjs`), so its
+    // built-in lint step silently does nothing here regardless of this flag.
+    // Rather than keep a setting that promises a check that never runs, linting
+    // is an explicit step: the `build` script runs `eslint src` before `next
+    // build`, so the gate is real. Run it on its own with `pnpm lint`.
+    ignoreDuringBuilds: true,
   },
   // Optimize for static hosting
   assetPrefix: process.env.NODE_ENV === 'production' ? '' : '',

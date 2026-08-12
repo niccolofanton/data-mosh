@@ -4,29 +4,30 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "build:static": "next build",
-    "export": "next build && next export",
+    "build": "eslint src && next build",
+    "build:static": "pnpm run build",
     "start": "next start",
     "serve": "npx serve@latest out",
-    "lint": "next lint",
-    "preview": "npm run build:static && npm run serve"
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "preview": "pnpm run build:static && pnpm run serve"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
+    "@niccolofanton/driftpane": "^1.1.0",
     "@react-three/drei": "^9.121.4",
     "@react-three/fiber": "^8.17.14",
     "@react-three/postprocessing": "^2.19.1",
     "gsap": "^3.12.7",
     "lenis": "^1.1.20",
-    "leva": "^0.10.0",
     "next": "14.2.17",
     "postprocessing": "^6.36.7",
     "r3f-perf": "^7.2.3",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "three": "^0.173.0",
-    "three-stdlib": "^2.35.13"
+    "three-stdlib": "^2.35.13",
+    "tweakpane": "^4.0.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

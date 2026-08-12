@@ -10,6 +10,10 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  // Build artifacts: `out` is the configured `distDir` of the static export.
+  {
+    ignores: [".next/**", "out/**", "next-env.d.ts"],
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
 ];
 

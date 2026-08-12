@@ -1,152 +1,220 @@
 import * as THREE from "three";
 
-let canvasIndex = 0;
+/**
+ * Small on screen previews of the intermediate frame buffers of the datamosh
+ * pipeline (keyframe, feedback, depth, velocity).
+ *
+ * Reading a texture back to a 2D canvas means a synchronous GPU -> CPU
+ * transfer, which is expensive, so the views share a single quad and each one
+ * keeps its render target and pixel buffer alive across calls and refreshes at
+ * a handful of frames per second instead of at render rate.
+ */
 
-export const addDebugCanvas = (
-  texture: THREE.Texture,
-  name: string = `Canvas ${canvasIndex}`,
-) => {
-  const canvas = document.createElement("canvas");
-  canvas.width = window.innerWidth / 10;
-  canvas.height = window.innerHeight / 10;
+const VIEW_WIDTH = 192;
+const DEFAULT_INTERVAL = 1000 / 8;
 
-  canvas.style.position = "fixed";
-  canvas.style.top = `${10 + canvasIndex * 10 + (window.innerHeight / 10) * canvasIndex}px`;
-  canvas.style.left = "10px";
-  canvas.style.zIndex = "1000";
-  canvas.style.pointerEvents = "none";
-  canvas.style.border = "1px solid white";
-  canvas.title = name;
+export type DebugViewMode = "color" | "depth" | "velocity";
 
-  document.body.appendChild(canvas);
-
-  canvasIndex++;
-  console.log("Added canvas", canvasIndex);
-
-  return canvas;
+const MODE_INDEX: Record<DebugViewMode, number> = {
+  color: 0,
+  depth: 1,
+  velocity: 2,
 };
 
-export const updateDebugCanvas = (
-  canvas: HTMLCanvasElement,
-  texture: THREE.Texture,
-  gl: THREE.WebGLRenderer,
-) => {
-  const ctx = canvas.getContext("2d");
+/**
+ * Amplification of the motion vectors in the velocity preview. They are a few
+ * thousandths of a uv unit, so the raw buffer reads as flat grey.
+ */
+const VELOCITY_PREVIEW_GAIN = 40;
 
-  if (!ctx) {
-    console.log("No context found");
-    return;
+const debugVertexShader = /*glsl*/ `
+  varying vec2 vUv;
+  void main() {
+    // The pixel read back from the render target starts at the bottom row while
+    // ImageData starts at the top one, so the source is sampled flipped.
+    vUv = vec2(uv.x, 1.0 - uv.y);
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+  }
+`;
+
+const debugFragmentShader = /*glsl*/ `
+  uniform sampler2D uTexture;
+  uniform float uMode;          // 0 = colour, 1 = depth, 2 = velocity
+  uniform float uNear;
+  uniform float uFar;
+  uniform float uVelocityGain;
+  varying vec2 vUv;
+
+  void main() {
+    vec4 texel = texture2D(uTexture, vUv);
+
+    if (uMode > 1.5) {
+      // Red = motion to the right, green = motion up, black = no coverage.
+      vec2 encoded = texel.rg * uVelocityGain * 0.5 + 0.5;
+      gl_FragColor = vec4(clamp(vec3(encoded, 0.5), 0.0, 1.0) * texel.a, 1.0);
+      return;
+    }
+
+    if (uMode > 0.5) {
+      // Hyperbolic depth -> view z -> normalised distance.
+      float viewZ = (uNear * uFar) / ((uFar - uNear) * texel.r - uFar);
+      float linear = clamp((-viewZ - uNear) / (uFar - uNear), 0.0, 1.0);
+      // Most of the scene sits in the first few percent of the range, so the
+      // near end is expanded to make the preview readable.
+      gl_FragColor = vec4(vec3(1.0 - pow(linear, 0.35)), 1.0);
+      return;
+    }
+
+    gl_FragColor = vec4(texel.rgb, 1.0);
+  }
+`;
+
+interface SharedResources {
+  scene: THREE.Scene;
+  camera: THREE.OrthographicCamera;
+  quad: THREE.Mesh;
+  users: number;
+}
+
+let shared: SharedResources | null = null;
+
+const acquireShared = (): SharedResources => {
+  if (!shared) {
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
+    quad.frustumCulled = false;
+    scene.add(quad);
+    shared = { scene, camera, quad, users: 0 };
   }
 
-  // if (canvas.title != 'pFrame') return;
+  shared.users++;
+  return shared;
+};
 
-  // Create temporary render target for texture rendering
-  const renderTarget = new THREE.WebGLRenderTarget(
-    canvas.width,
-    canvas.height,
-    {
+const releaseShared = () => {
+  if (!shared) return;
+
+  shared.users--;
+  if (shared.users > 0) return;
+
+  shared.quad.geometry.dispose();
+  (shared.quad.material as THREE.Material).dispose();
+  shared = null;
+};
+
+/** One preview canvas, pinned to the left edge of the window. */
+export class DebugFrameView {
+  private readonly canvas: HTMLCanvasElement;
+  private readonly context: CanvasRenderingContext2D | null;
+  private readonly renderTarget: THREE.WebGLRenderTarget;
+  private readonly material: THREE.ShaderMaterial;
+  private readonly imageData: ImageData;
+  private readonly pixels: Uint8Array;
+  private readonly resources: SharedResources;
+  private lastUpdate = 0;
+
+  constructor(
+    private readonly label: string,
+    slot: number,
+    aspect: number,
+    private readonly mode: DebugViewMode = "color",
+    private readonly interval: number = DEFAULT_INTERVAL,
+  ) {
+    const width = VIEW_WIDTH;
+    const height = Math.max(1, Math.round(VIEW_WIDTH / Math.max(aspect, 0.1)));
+
+    this.canvas = document.createElement("canvas");
+    this.canvas.width = width;
+    this.canvas.height = height;
+    this.canvas.title = label;
+    Object.assign(this.canvas.style, {
+      position: "fixed",
+      left: "10px",
+      top: `${10 + slot * (height + 8)}px`,
+      zIndex: "1000",
+      pointerEvents: "none",
+      border: "1px solid rgba(255,255,255,0.4)",
+    } satisfies Partial<CSSStyleDeclaration>);
+    document.body.appendChild(this.canvas);
+
+    this.context = this.canvas.getContext("2d");
+
+    this.renderTarget = new THREE.WebGLRenderTarget(width, height, {
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
-      format: THREE.RGBAFormat,
-    },
-  );
+      depthBuffer: false,
+      stencilBuffer: false,
+    });
+    // Keep the byte values in the same space as the source so the readback
+    // does not need any conversion.
+    this.renderTarget.texture.colorSpace = THREE.SRGBColorSpace;
 
-  // Create temporary scene for texture rendering
-  const tempScene = new THREE.Scene();
-  const tempCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    this.material = new THREE.ShaderMaterial({
+      vertexShader: debugVertexShader,
+      fragmentShader: debugFragmentShader,
+      depthTest: false,
+      depthWrite: false,
+      uniforms: {
+        uTexture: { value: null },
+        uMode: { value: MODE_INDEX[mode] },
+        uNear: { value: 0.1 },
+        uFar: { value: 100 },
+        uVelocityGain: { value: VELOCITY_PREVIEW_GAIN },
+      },
+    });
 
-  // Ensure texture parameters are set correctly
-  if (texture) {
-    texture.needsUpdate = true;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.format = THREE.RGBAFormat;
+    // The readback writes straight into the ImageData backing store, so there
+    // is no per frame allocation and no copy before putImageData.
+    this.imageData = new ImageData(width, height);
+    this.pixels = new Uint8Array(this.imageData.data.buffer);
+    this.resources = acquireShared();
   }
 
-  // Create plane with texture
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
-    side: THREE.DoubleSide,
-  });
+  update(
+    gl: THREE.WebGLRenderer,
+    texture: THREE.Texture | null,
+    now: number,
+    camera?: THREE.PerspectiveCamera,
+  ): void {
+    if (!texture || !this.context) return;
+    if (now - this.lastUpdate < this.interval) return;
+    this.lastUpdate = now;
 
-  const plane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
-
-  plane.rotateZ(Math.PI);
-  tempScene.add(plane);
-
-  // Render scene to render target
-  gl.setRenderTarget(renderTarget);
-  gl.render(tempScene, tempCamera);
-
-  // Read pixels from render target
-  const buffer = new Uint8Array(canvas.width * canvas.height * 4);
-  gl.readRenderTargetPixels(
-    renderTarget,
-    0,
-    0,
-    canvas.width,
-    canvas.height,
-    buffer,
-  );
-
-  // Uncomment to read pixel values: readValues(buffer)
-
-  // Create image from pixel data
-  const imageData = new ImageData(
-    new Uint8ClampedArray(buffer),
-    canvas.width,
-    canvas.height,
-  );
-  ctx.putImageData(imageData, 0, 0);
-
-  // Add title to canvas
-  ctx.font = "10px Arial";
-  ctx.fillStyle = "white";
-  const now = new Date();
-  const formattedTime = now.toLocaleTimeString("en-US", {
-    second: "2-digit",
-    fractionalSecondDigits: 3,
-  });
-  ctx.fillText(canvas.title + " time:" + formattedTime, 5, 10);
-
-  // Restore render target
-  gl.setRenderTarget(null);
-
-  // Clean up resources
-  renderTarget.dispose();
-};
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _readValues = (buffer: Uint8Array) => {
-  // Generate random number between 0 and 1
-  const randomValue = Math.random();
-  if (randomValue > 0.03) return;
-
-  // Find non-zero pixels directly from input buffer
-  const nonZeroPixels: Array<{
-    r: number;
-    g: number;
-    b: number;
-    a: number;
-    x: number;
-    y: number;
-  }> = [];
-
-  for (let i = 0; i < buffer.length; i += 4) {
-    const r = buffer[i];
-    const g = buffer[i + 1];
-    const b = buffer[i + 2];
-    const a = buffer[i + 3];
-    // && g > 20 && g < 80
-    if (r == 255 && g == 25) {
-      console.log(b);
-
-      const pixelIndex = Math.floor(i / 4);
-      const x = pixelIndex % window.innerWidth;
-      const y = Math.floor(pixelIndex / window.innerWidth);
-      nonZeroPixels.push({ r, g, b, a, x, y });
+    if (this.mode === "depth" && camera) {
+      this.material.uniforms.uNear.value = camera.near;
+      this.material.uniforms.uFar.value = camera.far;
     }
+    this.material.uniforms.uTexture.value = texture;
+
+    const previousTarget = gl.getRenderTarget();
+    const previousMaterial = this.resources.quad.material;
+
+    this.resources.quad.material = this.material;
+    gl.setRenderTarget(this.renderTarget);
+    gl.render(this.resources.scene, this.resources.camera);
+    gl.readRenderTargetPixels(
+      this.renderTarget,
+      0,
+      0,
+      this.canvas.width,
+      this.canvas.height,
+      this.pixels,
+    );
+    gl.setRenderTarget(previousTarget);
+    this.resources.quad.material = previousMaterial;
+
+    this.context.putImageData(this.imageData, 0, 0);
+
+    this.context.font = "10px ui-monospace, monospace";
+    this.context.fillStyle = "white";
+    this.context.fillText(this.label, 5, 12);
   }
 
-  // console.log('Non-zero pixels found:', nonZeroPixels);
-};
+  dispose(): void {
+    this.canvas.remove();
+    this.renderTarget.dispose();
+    this.material.dispose();
+    releaseShared();
+  }
+}

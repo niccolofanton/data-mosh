@@ -1,9 +1,27 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import "./globals.css";
 // import { geistMono, geistSans } from '@/components/fonts';
 import { ClientLayout } from './client-layout';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://data-mosh-demo.vercel.app';
+
+const author = {
+  name: 'Niccolò Fanton',
+  url: 'https://niccolofanton.dev',
+};
+
+/**
+ * The scene is a full-screen WebGL canvas driven by pointer/scroll gestures, so
+ * pinch-zoom is disabled on purpose to avoid fighting the camera controls.
+ */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#000000',
+  colorScheme: 'dark light',
+};
 
 export const metadata: Metadata = {
   title: "Data Moshing Demo - Niccolò Fanton",
@@ -23,9 +41,9 @@ export const metadata: Metadata = {
     "visual corruption",
     "digital artifacts"
   ],
-  authors: [{ name: "Data Mosh Demo" }],
-  creator: "Data Mosh Demo",
-  publisher: "Data Mosh Demo",
+  authors: [author],
+  creator: author.name,
+  publisher: author.name,
   robots: {
     index: true,
     follow: true,
@@ -46,26 +64,19 @@ export const metadata: Metadata = {
     description: 'Experience cutting-edge data moshing effects with real-time 3D graphics. An interactive digital art demo showcasing glitch aesthetics and experimental web technologies.',
     images: [
       {
-        url: '/og-image.jpg',
+        url: '/og-image.png',
         width: 1200,
         height: 630,
         alt: 'Data Moshing Demo - Interactive Digital Art Experience',
-        type: 'image/jpeg',
+        type: 'image/png',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    site: '@datamoshdemo',
-    creator: '@datamoshdemo',
     title: 'Data Moshing Demo - Interactive Digital Art',
     description: 'Experience cutting-edge data moshing effects with real-time 3D graphics. Interactive digital art demo with glitch aesthetics.',
-    images: ['/twitter-image.jpg'],
-  },
-  verification: {
-    google: 'your-google-verification-code',
-    // yandex: 'your-yandex-verification-code',
-    // yahoo: 'your-yahoo-verification-code',
+    images: ['/og-image.png'],
   },
   alternates: {
     canonical: siteUrl,
@@ -81,15 +92,23 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   generator: 'Next.js',
   applicationName: 'Data Moshing Demo',
+  manifest: '/manifest.json',
+  icons: {
+    // `app/favicon.ico` is picked up automatically by Next.
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
   appleWebApp: {
     capable: true,
     title: 'Data Mosh Demo',
     statusBarStyle: 'black-translucent',
   },
   other: {
-    'theme-color': '#000000',
-    'color-scheme': 'dark light',
-    'viewport': 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
+    // Standards-track replacement for `apple-mobile-web-app-capable`, which
+    // Next already emits from `appleWebApp` above.
+    'mobile-web-app-capable': 'yes',
+    'msapplication-TileColor': '#000000',
+    'msapplication-config': '/browserconfig.xml',
   },
 };
 
@@ -101,29 +120,19 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full w-full" suppressHydrationWarning>
       <head>
-        {/* Favicon and Icons */}
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="manifest" href="/manifest.json" />
-        
-        {/* Preload critical resources */}
-        <link rel="preload" href="/models" as="fetch" crossOrigin="" />
-        
-        {/* DNS Prefetch for external resources */}
-        <link rel="dns-prefetch" href="//fonts.googleapis.com" />
-        <link rel="dns-prefetch" href="//www.google-analytics.com" />
-        
-        {/* Additional Meta Tags */}
-        <meta name="theme-color" content="#000000" />
-        <meta name="color-scheme" content="dark light" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="msapplication-TileColor" content="#000000" />
-        <meta name="msapplication-config" content="/browserconfig.xml" />
-        
+        {/*
+          The scene's only heavy asset. three.js' FileLoader fetches it with the
+          default CORS mode, so `as="fetch"` + `crossOrigin="anonymous"` is what
+          makes the preload match the real request instead of duplicating it.
+        */}
+        <link
+          rel="preload"
+          href="/models/backroom-transformed.glb"
+          as="fetch"
+          type="model/gltf-binary"
+          crossOrigin="anonymous"
+        />
+
         {/* Structured Data */}
         <script
           type="application/ld+json"
@@ -142,10 +151,10 @@ export default function RootLayout({
                 "priceCurrency": "USD"
               },
               "creator": {
-                "@type": "Organization",
-                "name": "Data Mosh Demo"
+                "@type": "Person",
+                "name": author.name,
+                "url": author.url
               },
-              "datePublished": "2024-01-01",
               "genre": ["Digital Art", "Interactive Media", "Experimental Art"],
               "keywords": "data moshing, glitch art, digital art, interactive demo, WebGL, Three.js, visual effects"
             })

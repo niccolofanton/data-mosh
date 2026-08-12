@@ -12,35 +12,28 @@
   "dir": "ltr",
   "icons": [
     {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/apple-touch-icon.png",
       "sizes": "180x180",
-      "type": "image/png"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshot-wide.jpg",
-      "sizes": "1280x720",
-      "type": "image/jpeg",
-      "form_factor": "wide"
-    },
-    {
-      "src": "/screenshot-narrow.jpg",
-      "sizes": "720x1280",
-      "type": "image/jpeg",
-      "form_factor": "narrow"
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "shortcuts": [
@@ -52,9 +45,10 @@
       "icons": [
         {
           "src": "/icon-192.png",
-          "sizes": "192x192"
+          "sizes": "192x192",
+          "type": "image/png"
         }
       ]
     }
   ]
-} 
+}
