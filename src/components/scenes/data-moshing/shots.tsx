@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEnvironment, useFBX } from "@react-three/drei";
-import { SkeletonUtils } from "three-stdlib";
+import { SkeletonUtils, mergeVertices } from "three-stdlib";
 import { sceneCut } from "./scene-cut";
 import { shot, Shot } from "./shot";
 import { createCheckerTexture } from "./checker-texture";
@@ -358,6 +358,30 @@ export const Dancer = () => {
       // A rig whose bounding sphere was computed in bind pose culls itself the
       // moment a limb swings outside it.
       mesh.frustumCulled = false;
+
+      // The exporter wrote every triangle out with three vertices of its own,
+      // so the rig arrives with no index buffer and each vertex is skinned
+      // three times over - 84,816 vertices for 28,272 triangles on the body
+      // mesh alone, and every one of those invocations is sixteen fetches into
+      // the bone texture. Across seven dancers that is a million vertex shader
+      // runs per pass, doubled while the velocity pass is measuring.
+      //
+      // The uv attribute goes first because nothing samples it: the material
+      // below carries no map of any kind, so `USE_UV` is never defined and the
+      // vertex shader does not even declare it. Dropping it also stops it
+      // acting as a discriminator in the weld.
+      //
+      // `mergeVertices` at 1e-6 joins only vertices that are bit-identical in
+      // every remaining attribute, so the triangles it emits are the same
+      // triangles in the same order - it just stops shading each of them three
+      // times. `useFBX` hands out a cached object, hence the index guard: this
+      // has to be idempotent across remounts and StrictMode's double call.
+      if (mesh.geometry.index === null) {
+        mesh.geometry.deleteAttribute("uv");
+        const indexed = mergeVertices(mesh.geometry, 1e-6);
+        mesh.geometry.dispose();
+        mesh.geometry = indexed;
+      }
     });
 
     return fbx;

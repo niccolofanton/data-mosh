@@ -44,6 +44,12 @@ const PREVIOUS_MATRIX_KEY = "__dataMoshPreviousMatrixWorld";
 const PREVIOUS_BONES_KEY = "__dataMoshPreviousBoneTexture";
 
 /**
+ * userData key under which each skinned mesh records the bone-texture version
+ * its mirror was taken from, so an unchanged pose can be skipped.
+ */
+const PREVIOUS_BONES_VERSION_KEY = "__dataMoshPreviousBoneVersion";
+
+/**
  * Safety clamp, in uv units per frame. A tab that was throttled or a geometry
  * swap can produce a nonsensical delta for a single frame; 0.25 (a quarter of
  * the screen in one frame) is far beyond anything the demo can legitimately
@@ -374,12 +380,34 @@ export class VelocityPass extends Pass {
         .value as THREE.Matrix4
     ).copy(this.previousViewProjection);
 
+    // This is the second time the same graph is drawn this frame, and
+    // `renderer.render` would re-run `scene.updateMatrixWorld()` to derive
+    // world matrices that are already correct. That walk recurses into every
+    // child whether or not it is visible, and this scene is ~955 nodes, 903 of
+    // them bones belonging to shots that are off screen. Nothing between the
+    // RenderPass and here touches the graph - only full-screen effect passes,
+    // each on a scene of its own - so the values it would recompute are the
+    // ones already there.
+    //
+    // Three also de-duplicates `skeleton.update()` and the bone texture upload
+    // per `info.render.frame`, and a second `render()` defeats it: all 14
+    // skeletons recompute and re-upload, ~90 KB a frame. Rewinding that counter
+    // to make the dedupe hit was tried and does not work - `projectObject`
+    // reads the counter *before* `render()` increments it, and every effect
+    // pass in between is itself a `renderer.render` that bumps it, so the
+    // offset depends on how many passes happen to be enabled. Measured: no
+    // change to frame time, so it is not worth reaching further into three.
+    const autoUpdateWorld = scene.matrixWorldAutoUpdate;
+    scene.matrixWorldAutoUpdate = false;
+
     renderer.setRenderTarget(this.renderTarget);
     // Coverage is carried by alpha, so the background has to be cleared to a
     // fully transparent black rather than to the scene's clear colour.
     renderer.setClearColor(0x000000, 0);
     renderer.clear(true, true, false);
     renderer.render(scene, camera);
+
+    scene.matrixWorldAutoUpdate = autoUpdateWorld;
 
     renderer.setClearColor(clearColor, clearAlpha);
     renderer.shadowMap.autoUpdate = shadowMapAutoUpdate;
@@ -408,22 +436,29 @@ export class VelocityPass extends Pass {
     );
     this.hasPreviousCamera = true;
 
-    this.scene.traverse((object) => {
-      if (!(object as THREE.Mesh).isMesh) return;
-
-      const previous = object.userData[PREVIOUS_MATRIX_KEY] as
-        | THREE.Matrix4
-        | undefined;
-
-      if (previous === undefined) {
-        object.userData[PREVIOUS_MATRIX_KEY] = object.matrixWorld.clone();
-      } else {
-        previous.copy(object.matrixWorld);
-      }
-
-      this.captureBones(object as THREE.SkinnedMesh);
-    });
+    this.scene.traverse(this.captureObject);
   }
+
+  /**
+   * Hoisted rather than written inline at the `traverse` call: a fresh closure
+   * per frame is 60 short-lived allocations a second for a function that closes
+   * over nothing but `this`.
+   */
+  private readonly captureObject = (object: THREE.Object3D): void => {
+    if (!(object as THREE.Mesh).isMesh) return;
+
+    const previous = object.userData[PREVIOUS_MATRIX_KEY] as
+      | THREE.Matrix4
+      | undefined;
+
+    if (previous === undefined) {
+      object.userData[PREVIOUS_MATRIX_KEY] = object.matrixWorld.clone();
+    } else {
+      previous.copy(object.matrixWorld);
+    }
+
+    this.captureBones(object as THREE.SkinnedMesh);
+  };
 
   /**
    * Mirrors a skinned mesh's bone texture so the next frame can skin against
@@ -462,6 +497,17 @@ export class VelocityPass extends Pass {
       mesh.userData[PREVIOUS_BONES_KEY] = mirror;
     }
 
+    // `Skeleton.update()` bumps the source texture's version, and it only runs
+    // for a mesh the renderer actually drew. An unchanged version therefore
+    // means the pose already mirrored *is* this frame's pose, and the copy
+    // would write back the bytes it wrote last time. That is every frame for
+    // the two shots that are off screen - the mixers below them are gated on
+    // visibility, so their matrices genuinely cannot move - and it is 72 KB of
+    // memcpy plus 14 texture re-uploads each time.
+    const version = source.version;
+    if (mesh.userData[PREVIOUS_BONES_VERSION_KEY] === version) return;
+    mesh.userData[PREVIOUS_BONES_VERSION_KEY] = version;
+
     (mirror.image.data as Float32Array).set(skeleton.boneMatrices);
     mirror.needsUpdate = true;
   }
@@ -489,6 +535,7 @@ export class VelocityPass extends Pass {
 
       delete object.userData[PREVIOUS_MATRIX_KEY];
       delete object.userData[PREVIOUS_BONES_KEY];
+      delete object.userData[PREVIOUS_BONES_VERSION_KEY];
     });
     this.emptyBoneTexture.dispose();
     super.dispose();
