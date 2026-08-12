@@ -42,3 +42,4 @@ next-env.d.ts
 
 # playwright mcp artifacts
 .playwright-mcp/
+.perf-audit/

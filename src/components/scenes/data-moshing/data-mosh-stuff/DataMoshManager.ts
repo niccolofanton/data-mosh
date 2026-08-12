@@ -63,6 +63,7 @@ import { DebugFrameView } from "../../../debug-canvas/debug-canvas";
  */
 export class DataMoshManager {
   private readonly composer: EffectComposer;
+  private readonly renderPass: RenderPass;
   private readonly effect: DataMoshEffect;
   private readonly moshPass: EffectPass;
   private readonly velocityPass: VelocityPass;
@@ -104,7 +105,8 @@ export class DataMoshManager {
     this.camera = camera;
 
     this.composer = new EffectComposer(gl);
-    this.composer.addPass(new RenderPass(scene, camera));
+    this.renderPass = new RenderPass(scene, camera);
+    this.composer.addPass(this.renderPass);
 
     // FXAA, and first in the chain rather than last, which is where an
     // antialiasing pass normally goes.
@@ -239,7 +241,13 @@ export class DataMoshManager {
     if (gestureStart || gopRefresh) {
       this.lastKeyframeTime = now;
     }
-    this.keyframePass.enabled = gestureStart || gopRefresh;
+    // Nothing samples the keyframe target. The I-frame is expressed entirely by
+    // the `uKeyframe > 0.5 -> outputColor = inputColor` branch in the shader;
+    // this copy exists only to fill the debug preview, so off-screen it is a
+    // full-resolution blit on the one frame that also performs a scene cut -
+    // the frame least able to afford it.
+    this.keyframePass.enabled =
+      (gestureStart || gopRefresh) && settings.debugFrames;
     // Only the periodic keyframes reset the picture: the first one is the
     // reference the gesture starts drifting away from, and flashing it would
     // just make the trigger blink.
@@ -260,7 +268,8 @@ export class DataMoshManager {
     // Either debug view needs the buffer populated even when nothing is
     // moshing, otherwise the velocity preview is just a black rectangle until
     // the trigger is held - which is exactly when it is least useful to look at.
-    const debugging = settings.debugFrames || settings.debugMotion;
+    const debugging =
+      settings.effectEnabled && (settings.debugFrames || settings.debugMotion);
 
     this.velocityPass.enabled =
       settings.motionSource === "velocity" &&
@@ -278,6 +287,24 @@ export class DataMoshManager {
       this.opticsPass.enabled ? this.optics.barrel : 0,
       this.opticsPass.enabled ? this.optics.skew : 0,
     );
+
+    // A fully recovered picture is a bit-exact passthrough: the shader's first
+    // statement is `outputColor = inputColor; return;`, and the pass blends with
+    // BlendFunction.SRC, so the whole full-screen pass exists to reproduce its
+    // own input. This is a press-and-hold gesture, so that is the overwhelming
+    // majority of frames.
+    //
+    // The feedback copy deliberately keeps running: with the mosh pass off it
+    // copies the identical image, which is what keeps `pFrame` current for the
+    // first frame of the next gesture.
+    this.moshPass.enabled =
+      settings.effectEnabled && (moshing || settings.debugMotion);
+
+    // The datamosh shader is the only thing in the chain that samples depth, so
+    // when it is not running the composer's per-frame full-screen depth blit is
+    // copying a buffer nobody will read. The debug preview reads it too.
+    this.renderPass.needsDepthBlit =
+      this.moshPass.enabled || settings.debugFrames;
 
     this.composer.render(deltaTime);
 
@@ -531,4 +558,5 @@ const separateStableDepthTexture = (composer: EffectComposer): void => {
   for (const pass of internals.passes) {
     pass.setDepthTexture(replacement);
   }
+
 };
