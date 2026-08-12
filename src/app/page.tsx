@@ -7,7 +7,10 @@ export default function Test() {
   const [isContentReady, setIsContentReady] = useState(false);
 
   useEffect(() => {
-    setTimeout(() => setIsContentReady(true), 200);
+    // Cleared on unmount: under StrictMode this effect runs twice, and an
+    // uncleared handle sets state on a component that is no longer mounted.
+    const handle = window.setTimeout(() => setIsContentReady(true), 200);
+    return () => window.clearTimeout(handle);
   }, []);
 
   return (

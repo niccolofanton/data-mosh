@@ -67,19 +67,25 @@ export default function LoadingScreen(props: Readonly<LoadingScreenProps>) {
   useEffect(() => {
     setProgress(100);
 
-    setTimeout(() => {
+    // Both handles are cleared on re-run. `ready` flips shortly after mount, so
+    // this effect fires twice, and without the cleanup four timers were live at
+    // once - two of them firing against a superseded run and calling
+    // `onComplete` a second time.
+    const reveal = window.setTimeout(() => {
       document.body.removeAttribute("data-lenis-prevent"); // Make sure you pass true as string
       document.body.style.overflow = "auto";
       setIsCompleted(true);
     }, 1500);
 
-    setTimeout(() => {
+    const finish = window.setTimeout(() => {
       setHidden(true);
-
-      if (onComplete) {
-        onComplete!();
-      }
+      onComplete?.();
     }, 2500);
+
+    return () => {
+      window.clearTimeout(reveal);
+      window.clearTimeout(finish);
+    };
   }, [ready, onComplete]);
 
   return (

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, Suspense } from 'react';
+import { useState, useRef, useEffect, Suspense, lazy } from 'react';
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { setupMobileScrollPrevention } from '@/components/utils/eventUtils';
@@ -13,7 +13,20 @@ import {
 import { Dancer, OnlyIn, ShotStage } from '../data-moshing/shots';
 import { Cloth } from '../data-moshing/cloth/cloth';
 import { useControls } from '@/components/ui/controls';
-import { Perf } from 'r3f-perf';
+
+/**
+ * Loaded only when the overlay is switched on.
+ *
+ * A static import put r3f-perf and its dependency graph - stitches, radix
+ * icons, zustand, drei's Text and troika-three-text, plus a base64 font - into
+ * the first-load bundle of every visit, and stitches injects its stylesheet at
+ * module scope, so the cost was paid on the critical path of a page whose whole
+ * job is to get a WebGL scene running. The control defaults to off in a folder
+ * that starts collapsed.
+ */
+const Perf = lazy(() =>
+  import('r3f-perf').then((module) => ({ default: module.Perf })),
+);
 
 /**
  * Folder options for the shared control panel. These two folders are
@@ -60,11 +73,14 @@ export const OfficeScene2 = () => {
     return cleanup;
   }, []);
 
-  // Prevent scrolling on mobile devices
+  // Prevent a touch drag on the view from scrolling the page. Bound to the
+  // canvas once it exists rather than to the document - see the helper.
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+
   useEffect(() => {
-    const cleanup = setupMobileScrollPrevention();
-    return cleanup;
-  }, []);
+    if (canvas === null) return;
+    return setupMobileScrollPrevention(canvas);
+  }, [canvas]);
 
   // Performance controls
   const { showPerf } = useControls("⚡ Performance", {
@@ -123,6 +139,7 @@ export const OfficeScene2 = () => {
         onCreated={state => {
           // Disable automatic rendering
           state.gl.autoClear = false;
+          setCanvas(state.gl.domElement);
         }}
       >
         {/*
@@ -176,7 +193,11 @@ export const OfficeScene2 = () => {
 
         <DataMoshingPostProcessing />
 
-        {showPerf && <Perf position="bottom-right" />}
+        {showPerf && (
+          <Suspense fallback={null}>
+            <Perf position="bottom-right" />
+          </Suspense>
+        )}
 
       </Canvas>
     </>

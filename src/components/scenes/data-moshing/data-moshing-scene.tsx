@@ -99,10 +99,16 @@ export const MorphingShape = () => {
   }, [variants.length]);
 
   useFrame((_, delta) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x += delta * 1.2;
-      meshRef.current.rotation.y += delta * 1.2;
-    }
+    const mesh = meshRef.current;
+    if (mesh === null) return;
+
+    // One `set` rather than two component writes. Each write to an Euler fires
+    // Object3D's change callback, which runs `quaternion.setFromEuler` - six
+    // trig calls - so writing x and y separately computed the quaternion twice
+    // and threw the first result away. `set` assigns all three and fires once.
+    const step = delta * 1.2;
+    const rotation = mesh.rotation;
+    rotation.set(rotation.x + step, rotation.y + step, rotation.z);
   });
 
   const variant = variants[variantIndex];
@@ -200,7 +206,10 @@ interface CameraControllerProps {
 }
 
 export const CameraController = ({ autoRotate = false }: CameraControllerProps) => {
-  const { camera } = useThree();
+  // Selector rather than the whole store: the identity selector re-renders this
+  // component on every `set()` r3f makes - size (so, every scroll), dpr,
+  // frameloop - none of which it reads.
+  const camera = useThree((state) => state.camera);
   // The trigger listens on the canvas, not on the window: the control panel is
   // an overlay, and a window level mousedown made every slider drag and every
   // checkbox click fire the effect.
@@ -386,11 +395,17 @@ export const CameraController = ({ autoRotate = false }: CameraControllerProps) 
       if (document.hidden) releaseAllInput();
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mousemove", handleMouseMove, { passive: true });
     window.addEventListener("touchmove", handleTouchMove, { passive: true });
-    canvas.addEventListener("touchstart", handleTouchStart);
-    window.addEventListener("touchend", handleTouchEnd);
-    window.addEventListener("touchcancel", handleTouchEnd);
+    // Explicitly passive. Chrome's "passive by default" intervention covers
+    // touchstart only on window, document and body - on an element target the
+    // default is still non-passive, which makes the canvas a scroll-blocking
+    // target and holds the compositor until this main thread, busy with the
+    // whole composer chain, has run the handler. None of these three calls
+    // preventDefault.
+    canvas.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", handleTouchEnd, { passive: true });
     canvas.addEventListener("pointerdown", handlePointerDown);
     window.addEventListener("pointerup", handlePointerUp);
     window.addEventListener("pointercancel", handlePointerUp);

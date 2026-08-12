@@ -133,6 +133,25 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
 
+        {/*
+          That GLB declares KHR_draco_mesh_compression, and drei points its
+          DRACOLoader at gstatic - so parsing the file that gates the whole
+          canvas cannot begin until a wasm wrapper and a decoder land from a
+          third origin, behind a fresh DNS lookup and TLS handshake. Warming the
+          connection takes that round trip off the critical path. (The decoder
+          is ~100 KB to decompress 7.7 KB of geometry, which is worth revisiting
+          separately.)
+        */}
+        <link rel="preconnect" href="https://www.gstatic.com" crossOrigin="anonymous" />
+
+        {/* The rest of the scene: not render-blocking, but wanted early. */}
+        <link
+          rel="preload"
+          href="/hdri/kloppenheim-puresky-1k.hdr"
+          as="fetch"
+          crossOrigin="anonymous"
+        />
+
         {/* Structured Data */}
         <script
           type="application/ld+json"

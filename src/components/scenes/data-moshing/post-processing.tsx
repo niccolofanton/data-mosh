@@ -408,7 +408,12 @@ export const DataMoshingPostProcessing = () => {
 
   useEffect(() => {
     managerRef.current?.setSize(size.width, size.height);
-  }, [size]);
+    // The two dimensions rather than the object: r3f rebuilds `size` whenever
+    // its measured rect changes, and that rect includes `top` and `left`, which
+    // move on scroll. This effect therefore re-fired on every scroll tick with
+    // identical dimensions - and `setSize` tears down and rebuilds the debug
+    // frame views when they are on.
+  }, [size.width, size.height]);
 
   // Priority > 0 takes over the render loop from r3f, which is what lets the
   // composer own the frame.
