@@ -43,3 +43,11 @@ next-env.d.ts
 # playwright mcp artifacts
 .playwright-mcp/
 .perf-audit/
+
+# scratch space for the Codrops editorial research (sitemaps, article index,
+# per-article analyses). The two deliverables it produces are committed under
+# docs/; everything under here is intermediate.
+.codrops-research/
+
+# rendered from docs/CODROPS-ARTICLE.md; the Markdown is the source of truth
+docs/*.pdf
