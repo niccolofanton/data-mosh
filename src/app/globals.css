@@ -1,31 +1,22 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/*
+ * The page is one full-viewport WebGL canvas: nothing scrolls, nothing else
+ * paints. Four rules replace the Tailwind build that used to sit here for the
+ * four utility classes this markup actually used.
+ */
 
-:root {
-  /* --background: #ffffff; */
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* --background: #0a0a0a; */
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  color: var(--foreground);
-  /* background: var(--background); */
-  /* font-family: Arial, Helvetica, sans-serif; */
-  scrollbar-gutter: stable both-edges;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #000;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.curtains-canvas {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  min-height: 100vh;
-  /* z-index: 1; */
+/* Block, so the canvas does not sit on a text baseline and leave a gap under it. */
+canvas {
+  display: block;
+  user-select: none;
+  -webkit-user-select: none;
 }

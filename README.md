@@ -11,53 +11,65 @@ compressed video looks when its keyframes are dropped.
 
 ```bash
 pnpm install
-pnpm dev          # dev server on http://localhost:3000
+pnpm dev            # dev server on http://localhost:3000
 ```
 
-Other scripts:
-
-| Command            | What it does                                              |
-| ------------------ | --------------------------------------------------------- |
-| `pnpm build`       | Static export of the site into `out/` (`output: 'export'`) |
-| `pnpm preview`     | Build, then serve `out/` locally                           |
-| `pnpm serve`       | Serve an already built `out/`                              |
-| `pnpm lint`        | ESLint over `src/`                                         |
-| `pnpm lint:fix`    | ESLint over `src/` with autofix                            |
+| Command        | What it does                                               |
+| -------------- | ---------------------------------------------------------- |
+| `pnpm build`   | ESLint, then a static export of the site into `out/`        |
+| `pnpm preview` | Build, then serve `out/` locally                            |
+| `pnpm lint`    | ESLint over `src/`                                          |
 
 > The app is a fully static export, so there is no server runtime: deploy the
 > contents of `out/` to any static host.
 
 ## Controls
 
-| Input                          | Action                          |
-| ------------------------------ | ------------------------------- |
-| `W` / `A` / `S` / `D`          | Move the camera                 |
-| Mouse move                     | Look around                     |
-| `Space`, or hold mouse / touch | Activate the datamosh effect    |
+| Input                          | Action                       |
+| ------------------------------ | ---------------------------- |
+| `W` / `A` / `S` / `D`          | Move the camera              |
+| Mouse move                     | Look around                  |
+| `Space`, or hold mouse / touch | Activate the datamosh effect |
 
-A [Leva](https://github.com/pmndrs/leva) panel in the top-right corner exposes
-the effect parameters live: the fade-back duration, the data corruption toggle
-and its intensity / density / animation settings, camera auto-rotation, and a
-performance overlay.
+A Tweakpane panel exposes every parameter live, grouped into folders: the
+technique and its recovery time, the macroblock grid, the residual, the
+simulated camera, and the diagnostics. The debug views also have deep links:
+`?debug=motion`, `?debug=lost`, `?debug=frames`.
+
+## Layout
+
+```
+src/
+  app/            Next.js route, metadata, global stylesheet
+  scene/          the room, the subject, the cloth, the shots, the camera rig
+  datamosh/       the effect: manager, velocity pass, shaders, debug views
+  found-footage/  the simulated camera: optics, sensor, signal
+  state/          stores shared by scene and pipeline: shot, cut, input
+  controls/       the control panel, as a React hook
+  lib/            build-time helpers
+```
 
 ## How it works
 
 The scene is rendered through an effect composer:
 
 1. A **render pass** draws the room normally.
-2. **Copy passes** capture the current color frame and a depth frame, plus the
+2. A **velocity pass** measures how far every pixel moved since the last frame.
+3. **Copy passes** capture the current colour frame, a depth frame, and the
    effect's own previous output.
-3. The **datamosh effect** decides, every frame, what to show.
+4. The **datamosh effect** decides, every frame, what to show.
 
 While the trigger is held, the effect stops reading the freshly rendered frame.
-Instead it re-samples its own previous output and displaces the lookup by the
-camera movement of that frame, scaled by the per-pixel scene depth: near pixels
-slide more than far ones, so the image keeps "moving" with the camera even
-though no new geometry is ever drawn. This is the analogue of removing the
+It re-samples its own previous output and displaces the lookup by the measured
+motion, snapped onto a macroblock grid. This is the analogue of removing the
 I-frames from a compressed video and letting only the motion vectors play.
 
-On top of that, randomized blocks are periodically corrupted — pixelated,
-colour-shifted and dusted with noise — to mimic decoder garbage.
+Two further pieces make it read as a codec rather than as a blur: a share of the
+blocks lose their vectors and freeze, and a residual carries the difference
+between the two frames' local contrast through a dead-zone quantiser.
 
 When the trigger is released, the effect cross-fades from the frozen, smeared
 image back to the clean render over a configurable duration.
+
+For the full account, see [`docs/CODROPS-ARTICLE.md`](docs/CODROPS-ARTICLE.md).
+Performance measurements are in [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
