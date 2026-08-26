@@ -66,19 +66,16 @@ demo-react/
 # ...except the ones the demo itself ships.
 !full-project/public/*.png
 
-# Editorial scratch: shot dump, review notes, the Italian narration and its
-# renders, and the in-page prose editor that produced edits.json.
+# Editorial scratch: shot dump and review notes.
 /shots.json
 /REVIEW-CODROPS.md
-article/html/*.mp3
-article/html/narrazione-it.txt
-article/html/edits.json
-article/html/edit-server.py
-article/html/editor.js
 
-# The whole capture rig: 195 MB of intermediate VP9 plus the Playwright
-# harness that produced it. What ships is article/html/video/*.mp4.
-article/html/record/
+# The article and everything that produced it: the prose, the figures, the
+# clips the published page ships, the narration, the in-page prose editor,
+# and the Playwright capture rig with its 195 MB of intermediate VP9. Codrops
+# receives the article through their own editorial pipeline, not through this
+# repo, so none of it belongs in what is shared with them.
+article/
 
 # Vite's dependency cache, when a dev server is run from the root.
 .vite/

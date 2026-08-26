@@ -71,5 +71,5 @@ between the two frames' local contrast through a dead-zone quantiser.
 When the trigger is released, the effect cross-fades from the frozen, smeared
 image back to the clean render over a configurable duration.
 
-For the full account, see the live article draft in
-[`../article/html/index.html`](../article/html/index.html).
+For the full account, see the Codrops article,
+[Feeding a Decoder the Wrong Frame](https://tympanus.net/codrops/?p=).
