@@ -16,7 +16,9 @@ export type Shot = {
 };
 
 const knot = new THREE.Mesh(
-  new THREE.TorusKnotGeometry(1, 0.36, 180, 32),
+  // 0.85 and 0.306: the knot at 85%, tube included, so it keeps its
+  // proportions and simply sits further inside the frame.
+  new THREE.TorusKnotGeometry(0.85, 0.306, 180, 32),
   new THREE.MeshStandardMaterial({ color: '#e9e3d4', roughness: 0.35, metalness: 0.15 }),
 );
 
