@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -13,12 +13,8 @@
 # testing
 /coverage
 
-# next.js
-/.next/
-/out/
-
-# production
-/build
+# build output
+dist/
 
 # misc
 .DS_Store
@@ -38,16 +34,51 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 
 # playwright mcp artifacts
 .playwright-mcp/
 .perf-audit/
 
 # scratch space for the Codrops editorial research (sitemaps, article index,
-# per-article analyses). The two deliverables it produces are committed under
-# docs/; everything under here is intermediate.
-.codrops-research/
+# per-article analyses). The deliverable it produced is committed under docs/;
+# everything under here is intermediate.
+full-project/archive/codrops-research/
 
 # rendered from docs/CODROPS-ARTICLE.md; the Markdown is the source of truth
-docs/*.pdf
+**/*.pdf
+
+# Intermediate canvas captures: 200 MB of VP9 that encode.sh turns into
+# article/html/video/*.mp4, which is what the article actually ships.
+article/html/record/raw/
+
+# Generated from article/html by article/build-submission.py.
+article/submission/
+
+# --- Local working material, deliberately not shared ---------------------
+# The repo handed to Codrops is: full-project/, demo/, article/, README, LICENSE.
+# Everything below is authoring scaffolding that would only add noise.
+
+# The r3f original, superseded by demo/ (the vanilla rewrite the article uses).
+demo-react/
+
+# Screenshots taken while drafting the figures.
+/*.png
+# ...except the ones the demo itself ships.
+!full-project/public/*.png
+
+# Editorial scratch: shot dump, review notes, the Italian narration and its
+# renders, and the in-page prose editor that produced edits.json.
+/shots.json
+/REVIEW-CODROPS.md
+article/html/*.mp3
+article/html/narrazione-it.txt
+article/html/edits.json
+article/html/edit-server.py
+article/html/editor.js
+
+# The whole capture rig: 195 MB of intermediate VP9 plus the Playwright
+# harness that produced it. What ships is article/html/video/*.mp4.
+article/html/record/
+
+# Vite's dependency cache, when a dev server is run from the root.
+.vite/

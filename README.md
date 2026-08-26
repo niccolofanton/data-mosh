@@ -1,75 +1,87 @@
-# Data Mosh
+# Feeding a Decoder the Wrong Frame
 
-A real-time WebGL demo of a **datamosh** effect, built with Next.js 14,
-react-three-fiber and the `postprocessing` library.
+A real-time datamosh effect in WebGL. Not a glitch filter over a finished
+render: an actual inter-frame decoder loop, built out of the pieces a video
+codec is made of — motion vectors, macroblocks, residuals — and then fed the
+wrong reference frame on purpose.
 
-You walk around a small 3D room; while you hold the trigger, the image stops
-being refreshed and starts smearing along your camera movement, the way a
-compressed video looks when its keyframes are dropped.
+```text
+new frame = warp(previous frame, motion vectors) + residual
+```
 
-## Getting started
+Source project for the Codrops article
+**[Feeding a Decoder the Wrong Frame](https://tympanus.net/codrops/?p=)**
+by [Niccolò Fanton](https://niccolofanton.dev).
+
+![The effect running in the full project](article/html/video/hero.jpg)
+
+## What's in here
+
+| Folder | What it is |
+| --- | --- |
+| [`full-project/`](full-project) | **The demo Codrops deploys.** The complete piece: a loaded room, a dancer rig, an image-based sky, a camera controller, the debug frame buffers and a live parameter panel. React + react-three-fiber. |
+| [`demo/`](demo) | The same pipeline with everything else taken away: plain three.js, six procedural shots, no downloaded assets. This is the code the article walks through, line for line. |
+| [`article/`](article) | The article itself — the prose, the figures, and the eight clips the published page ships instead of live WebGL contexts. |
+
+Both projects are Vite + TypeScript and run the same way:
 
 ```bash
 pnpm install
-pnpm dev            # dev server on http://localhost:3000
+pnpm dev
 ```
 
-| Command        | What it does                                               |
-| -------------- | ---------------------------------------------------------- |
-| `pnpm build`   | ESLint, then a static export of the site into `out/`        |
-| `pnpm preview` | Build, then serve `out/` locally                            |
-| `pnpm lint`    | ESLint over `src/`                                          |
+`pnpm build` produces a static `dist/`. Both are configured with Vite's
+`base: './'`, so the build works from any subdirectory rather than only from a
+host root.
 
-> The app is a fully static export, so there is no server runtime: deploy the
-> contents of `out/` to any static host.
+## Which one to read
 
-## Controls
+Read `demo/` first. It is the article's argument in about 1,200 lines with nothing in
+the way: `main.ts` owns the renderer and the shot schedule, `scenes.ts` is six
+scenes chosen for the *kind* of motion each one produces, and `datamosh/` is
+the pipeline — a velocity pass, a feedback loop, and one fragment shader where
+the decode actually happens.
 
-| Input                          | Action                       |
-| ------------------------------ | ---------------------------- |
-| `W` / `A` / `S` / `D`          | Move the camera              |
-| Mouse move                     | Look around                  |
-| `Space`, or hold mouse / touch | Activate the datamosh effect |
+`full-project/` is the same `datamosh/` folder, wrapped in the scene the hero
+video shows. It is the more interesting thing to *look* at and the harder thing
+to read, because most of its extra code is about the room, the dancers and the
+camera, not about the effect.
 
-A Tweakpane panel exposes every parameter live, grouped into folders: the
-technique and its recovery time, the macroblock grid, the residual, the
-simulated camera, and the diagnostics. The debug views also have deep links:
-`?debug=motion`, `?debug=lost`, `?debug=frames`.
+## How it works, in one paragraph
 
-## Layout
+Every frame, a velocity pass renders each object's screen-space motion into its
+own buffer. While the trigger is held, the pipeline stops presenting the newly
+rendered image and instead resamples the *previous* output along those vectors —
+the same prediction step a decoder performs on a P-frame — and adds a quantised
+residual on top. Because the reference frame is never refreshed, the error
+compounds: detail from a shot that is no longer on screen gets dragged around by
+motion belonging to a shot that is. The article takes that sentence apart over
+nine figures.
 
-```
-src/
-  app/            Next.js route, metadata, global stylesheet
-  scene/          the room, the subject, the cloth, the shots, the camera rig
-  datamosh/       the effect: manager, velocity pass, shaders, debug views
-  found-footage/  the simulated camera: optics, sensor, signal
-  state/          stores shared by scene and pipeline: shot, cut, input
-  controls/       the control panel, as a React hook
-  lib/            build-time helpers
-```
+## The pipeline, file by file
 
-## How it works
+| File (identical in both projects) | Responsibility |
+| --- | --- |
+| `datamosh/velocity-pass.ts` | Per-object screen-space velocity, into a half-float target |
+| `datamosh/manager.ts` (`index.ts` in `demo/`) | The feedback lifecycle: history targets, keyframes, recovery |
+| `datamosh/effect.ts` | The `postprocessing` effect wrapper and camera reprojection state |
+| `datamosh/shaders.ts` | The decode loop, the residual, the macroblock grid, the diagnostics |
+| `datamosh/debug-view.ts` | The motion-vector and frame-buffer overlays |
 
-The scene is rendered through an effect composer:
+Velocity and history targets use half-float precision where the device supports
+it, and fall back to camera-derived motion with an 8-bit history where it does
+not.
 
-1. A **render pass** draws the room normally.
-2. A **velocity pass** measures how far every pixel moved since the last frame.
-3. **Copy passes** capture the current colour frame, a depth frame, and the
-   effect's own previous output.
-4. The **datamosh effect** decides, every frame, what to show.
+## Credits
 
-While the trigger is held, the effect stops reading the freshly rendered frame.
-It re-samples its own previous output and displaces the lookup by the measured
-motion, snapped onto a macroblock grid. This is the analogue of removing the
-I-frames from a compressed video and letting only the motion vectors play.
+- Sky: `kloppenheim_puresky` from [Poly Haven](https://polyhaven.com), CC0.
+- Room model (`backroom-transformed.glb`) and dancer animation
+  (`thriller.fbx`): **TODO — add the source and licence before publishing.**
+- The effect is an original implementation. Datamoshing as a technique comes
+  out of artists working with real compressed footage — Takeshi Murata, Sven
+  König and Bertrand Planes among the earliest; what is new here is rebuilding
+  the mechanism inside a renderer rather than recovering it from a damaged file.
 
-Two further pieces make it read as a codec rather than as a blur: a share of the
-blocks lose their vectors and freeze, and a residual carries the difference
-between the two frames' local contrast through a dead-zone quantiser.
+## Licence
 
-When the trigger is released, the effect cross-fades from the frozen, smeared
-image back to the clean render over a configurable duration.
-
-For the full account, see [`docs/CODROPS-ARTICLE.md`](docs/CODROPS-ARTICLE.md).
-Performance measurements are in [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
+[MIT](LICENSE).

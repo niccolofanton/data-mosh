@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <!--
+      The scene is a full-screen WebGL canvas driven by pointer/scroll gestures,
+      so pinch-zoom is disabled on purpose to avoid fighting the camera controls.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+
+    <title>Data Moshing Demo - Niccolò Fanton</title>
+    <meta
+      name="description"
+      content="A real-time datamosh effect in WebGL: motion vectors, macroblocks and residuals, running on three.js."
+    />
+    <meta name="keywords" content="datamosh, glitch art, WebGL, three.js, shader effects" />
+    <meta name="author" content="Niccolò Fanton" />
+    <link rel="author" href="https://niccolofanton.dev" />
+    <link rel="canonical" href="https://data-mosh-demo.vercel.app" />
+
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="favicon.ico" sizes="32x32" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://data-mosh-demo.vercel.app" />
+    <meta property="og:site_name" content="Data Moshing Demo" />
+    <meta property="og:title" content="Data Moshing Demo" />
+    <meta
+      property="og:description"
+      content="A real-time datamosh effect in WebGL: motion vectors, macroblocks and residuals, running on three.js."
+    />
+    <meta property="og:image" content="https://data-mosh-demo.vercel.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Data Moshing Demo" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Data Moshing Demo" />
+    <meta
+      name="twitter:description"
+      content="A real-time datamosh effect in WebGL: motion vectors, macroblocks and residuals, running on three.js."
+    />
+    <meta name="twitter:image" content="https://data-mosh-demo.vercel.app/og-image.png" />
+
+    <!--
+      The scene's only heavy asset. three.js' FileLoader fetches it with the
+      default CORS mode, so `as="fetch"` + `crossorigin="anonymous"` is what
+      makes the preload match the real request instead of duplicating it.
+    -->
+    <link
+      rel="preload"
+      href="models/backroom-transformed.glb"
+      as="fetch"
+      type="model/gltf-binary"
+      crossorigin="anonymous"
+    />
+
+    <!--
+      That GLB declares KHR_draco_mesh_compression, and drei points its
+      DRACOLoader at gstatic - so parsing the file that gates the whole canvas
+      cannot begin until a wasm wrapper and a decoder land from a third origin,
+      behind a fresh DNS lookup and TLS handshake. Warming the connection takes
+      that round trip off the critical path.
+    -->
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin="anonymous" />
+
+    <!-- The rest of the scene: not render-blocking, but wanted early. -->
+    <link rel="preload" href="hdri/kloppenheim-puresky-1k.hdr" as="fetch" crossorigin="anonymous" />
+
+    <!--
+      Every style the demo has. Inline rather than a stylesheet: it is under
+      forty lines, and as a module import it became a separate render-blocking
+      request in front of a page whose whole job is to start a WebGL context.
+
+      The page is one full-viewport canvas. Nothing scrolls, nothing else paints.
+    -->
+    <style>
+      /*
+        The frame, in the house style of the Singularity demo: a big bold
+        wordmark top left with the byline and the Codrops links under it, the
+        tags along the bottom, the settings link top right.
+
+        Helvetica throughout - display weight for the wordmark, regular for
+        everything else - and no webfont, so none of it is on the critical path
+        of a page whose whole job is to start a WebGL context.
+      */
+      :root {
+        --frame-font: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+        --frame-inset: 20px;
+      }
+
+      .frame {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        padding: var(--frame-inset);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: flex-start;
+        /* The canvas underneath takes the pointer; only the anchors take it back. */
+        pointer-events: none;
+        font-family: var(--frame-font);
+        font-size: 12px;
+        line-height: 18px;
+        color: #fff;
+        /*
+          The shot runs from a near-black corridor to a lit green floor, so a
+          flat colour is unreadable somewhere in every frame. The halo is what
+          Singularity uses, inverted for a dark scene: it gives the type its own
+          local contrast wherever it lands.
+        */
+        filter: drop-shadow(0 0 10px rgb(0 0 0 / 90%));
+      }
+
+      .frame a {
+        pointer-events: auto;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .frame a:hover,
+      .frame a:focus-visible {
+        text-decoration: underline;
+      }
+
+      /* Wordmark. Bold and tight: the line box is the cap height, near enough. */
+      .frame__title {
+        margin: 0 0 -2px;
+        font-size: 45px;
+        line-height: 45px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: rgb(255 255 255 / 45%);
+        user-select: none;
+      }
+
+      .frame__byline {
+        margin: 0;
+        font-size: 10.5px;
+        line-height: 15px;
+        color: rgb(255 255 255 / 70%);
+      }
+
+      .frame__byline a {
+        text-decoration: underline;
+      }
+
+      /*
+        The top-left block: wordmark, byline, links. It exists so the frame's
+        column has exactly two items - this and the tags - and `space-between`
+        pushes those to opposite ends instead of spreading three separate lines
+        down the whole viewport.
+      */
+      .frame__head {
+        display: block;
+      }
+
+      .frame__links {
+        display: flex;
+        gap: 20px;
+        padding-top: 12px;
+      }
+
+      .frame__tags {
+        display: flex;
+        gap: 20px;
+      }
+
+      /* Its own corner, out of the flex column. */
+      .frame__settings {
+        position: fixed;
+        top: 16px;
+        right: var(--frame-inset);
+        font-size: 9px;
+        line-height: 12px;
+        text-decoration: underline;
+        color: rgb(255 255 255 / 45%);
+      }
+
+      /*
+        The gesture is the whole demo and nothing on screen says so, which is
+        how a visitor ends up looking at a still render and leaving. It hides
+        itself the first time the pointer goes down.
+      */
+      .frame__hint {
+        position: fixed;
+        left: 50%;
+        bottom: 5vh;
+        transform: translateX(-50%);
+        padding: 3px 9px;
+        border-radius: 9999px;
+        background: rgb(255 255 255 / 60%);
+        box-shadow: 0 0 0 1px rgb(24 24 27 / 5%), 0 10px 15px -3px rgb(0 0 0 / 20%);
+        font-family: var(--frame-font);
+        font-size: 10.5px;
+        line-height: 15px;
+        font-weight: 500;
+        color: #27272a;
+        user-select: none;
+        transition: opacity 0.4s ease;
+      }
+
+      body.touched .frame__hint {
+        opacity: 0;
+      }
+
+      #cdawrap {
+        position: fixed;
+        right: var(--frame-inset);
+        bottom: var(--frame-inset);
+        max-width: 300px;
+        text-align: right;
+        pointer-events: auto;
+      }
+
+      /* The wordmark alone would eat a phone screen at 45px. */
+      @media screen and (max-width: 40em) {
+        .frame__title {
+          font-size: 32px;
+          line-height: 32px;
+        }
+
+        .frame__links,
+        .frame__tags {
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+      }
+
+      /*
+        Preloader. The scene is gated on 8 MB of room, rig and sky, and until
+        those land the canvas is a black rectangle that looks broken rather
+        than busy. The overlay is markup in this file, not in the bundle, so it
+        paints on the first frame - before React or three.js have been parsed -
+        and `body.loading` is dropped once three's loading manager reports the
+        last asset in (see src/preloader.tsx).
+      */
+      .loader {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 14px;
+        background: #000;
+        font-family: var(--frame-font);
+        font-size: 10.5px;
+        line-height: 15px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgb(255 255 255 / 45%);
+        transition: opacity 0.6s ease;
+      }
+
+      /* The bar tracks real progress, so it is a scale rather than an animation. */
+      .loader__bar {
+        width: 160px;
+        height: 2px;
+        background: rgb(255 255 255 / 15%);
+      }
+
+      .loader__fill {
+        display: block;
+        height: 100%;
+        background: rgb(255 255 255 / 70%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+      }
+
+      /*
+        `visibility` rather than `display`, so the fade has something to run on,
+        and `pointer-events` so the canvas is reachable the instant it is gone.
+      */
+      body:not(.loading) .loader {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      /* r3f sizes its canvas to its container, so the mount point needs the height too. */
+      html,
+      body,
+      #root {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+      }
+
+      /* Block, so the canvas does not sit on a text baseline and leave a gap under it. */
+      canvas {
+        display: block;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      /*
+        Tweakpane's panel is 256px wide and unbounded in height, and this one
+        carries about fifty controls: with two folders open it runs off the
+        bottom of a laptop screen with no way to reach the rest. At 256px the
+        longer labels ("Keyframe Every (ms)") are truncated as well.
+
+        The class is doubled to win on specificity without `!important`:
+        Tweakpane injects its own stylesheet when the Pane is constructed, i.e.
+        after this one, so at equal specificity its 256px would come last.
+      */
+      .tp-dfwv.tp-dfwv {
+        width: 300px;
+        max-height: calc(100dvh - 16px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
+
+      /* The value column the controls were tuned against. */
+      .tp-dfwv .tp-rotv {
+        --tp-blade-value-width: 140px;
+        --tp-container-unit-spacing: 6px;
+      }
+    </style>
+  </head>
+  <body class="loading">
+    <div class="loader" role="status" aria-live="polite">
+      <span>Loading</span>
+      <span class="loader__bar"><span class="loader__fill" id="loader-fill"></span></span>
+    </div>
+
+    <div id="root"></div>
+
+    <header class="frame">
+      <div class="frame__head">
+        <p class="frame__title">DATAMOSH</p>
+        <p class="frame__byline">by <a href="https://x.com/niccolofanton" target="_blank" rel="noopener">@niccolofanton</a></p>
+        <nav class="frame__links">
+          <!-- Codrops fills the post id in once the article has one. -->
+          <a href="https://tympanus.net/codrops/?p=">Read the tutorial</a>
+          <a href="https://github.com/niccolofanton/data-mosh" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://tympanus.net/codrops/demos/">All demos</a>
+        </nav>
+      </div>
+
+      <nav class="frame__tags">
+        <a href="https://tympanus.net/codrops/demos/?tag=three-js">#three.js</a>
+        <a href="https://tympanus.net/codrops/demos/?tag=webgl">#webgl</a>
+        <a href="https://tympanus.net/codrops/demos/?tag=shader">#shader</a>
+        <a href="https://tympanus.net/codrops/demos/?tag=glitch">#glitch</a>
+      </nav>
+
+      <a class="frame__settings" href="?debug">Show settings</a>
+      <p class="frame__hint">PRESS &amp; HOLD</p>
+    </header>
+
+    <script>
+      // Not in the bundle: the hint has to answer the very first press, which
+      // can land before the module graph has finished parsing.
+      addEventListener(
+        'pointerdown',
+        () => document.body.classList.add('touched'),
+        { once: true },
+      );
+    </script>
+
+    <script type="module" src="/src/main.tsx"></script>
+    <!--script src="https://tympanus.net/codrops/adpacks/cda_sponsor.js"></script-->
+  </body>
+</html>

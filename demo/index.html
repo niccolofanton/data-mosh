@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+    <meta
+      name="description"
+      content="A minimal real-time datamosh implementation using three.js motion vectors, macroblocks and a feedback shader."
+    />
+    <title>Real-Time Datamosh in WebGL</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        user-select: none;
+        -webkit-user-select: none;
+        /* A touch drag on the view must not scroll the page. */
+        touch-action: none;
+      }
+
+      /* Doubled class: Tweakpane injects its own 256px rule after this one. */
+      .tp-dfwv.tp-dfwv {
+        width: 300px;
+        max-height: calc(100dvh - 16px);
+        overflow-y: auto;
+      }
+
+      .tp-dfwv .tp-rotv {
+        --tp-blade-value-width: 140px;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
