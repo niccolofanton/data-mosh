@@ -3,6 +3,30 @@ import { DataMoshManager } from './datamosh';
 import { controls, createPane } from './debug';
 import { SHOTS } from './scenes';
 
+/**
+ * `?demo=true` is the showcase cut: two shots instead of six, and no control
+ * panel. It is what gets embedded or screen-recorded, where a Tweakpane column
+ * down the right-hand side is noise and four of the shots are there to make a
+ * point about *kinds* of motion that only the article needs made.
+ *
+ * Nothing about the pipeline changes - this only decides what is on stage.
+ */
+const showcase = new URLSearchParams(location.search).get('demo') === 'true';
+
+/**
+ * Indices into `SHOTS`: the torus knot and the sliding checker floor.
+ *
+ * They are the pair that carries the effect on its own. The knot is a solid
+ * body tumbling in place, so the smear stays where the eye already is; the
+ * floor runs long vectors at the bottom of the frame and sub-pixel ones at the
+ * horizon, so a single shot shows the whole range the decoder has to cope with.
+ * And cutting between them is a hard cut - dark to light, near to deep - which
+ * is exactly the mismatch the effect feeds on.
+ */
+const SHOWCASE = [0, 5];
+
+const shots = showcase ? SHOWCASE.map((i) => SHOTS[i]) : SHOTS;
+
 // Renderer and canvas. The composer takes over clearing, so nothing else here
 // touches the framebuffer.
 const renderer = new THREE.WebGLRenderer({ powerPreference: 'high-performance' });
@@ -20,7 +44,7 @@ const fog = new THREE.FogExp2(0x000000, 0);
 scene.fog = fog;
 const light = new THREE.DirectionalLight(0xffffff, 2.4);
 light.position.set(3, 4, 5);
-scene.add(new THREE.AmbientLight(0xffffff, 1.1), light, ...SHOTS.map((shot) => shot.object));
+scene.add(new THREE.AmbientLight(0xffffff, 1.1), light, ...shots.map((shot) => shot.object));
 
 // The cut. Called once at boot, and then by the manager on every gesture: the
 // new shot lands in the frame after the one already on screen, which is exactly
@@ -28,10 +52,10 @@ scene.add(new THREE.AmbientLight(0xffffff, 1.1), light, ...SHOTS.map((shot) => s
 let index = -1;
 
 const cut = (): true => {
-  index = (index + 1) % SHOTS.length;
-  const shot = SHOTS[index];
+  index = (index + 1) % shots.length;
+  const shot = shots[index];
 
-  for (const [i, other] of SHOTS.entries()) other.object.visible = i === index;
+  for (const [i, other] of shots.entries()) other.object.visible = i === index;
   scene.background = shot.background;
   // Same colour as the background, so what the fog swallows lands exactly on
   // the clear colour and the far edge of a shot stops existing.
@@ -71,10 +95,13 @@ addEventListener('blur', () => { held.pointer = held.keyboard = false; sync(); }
 
 cut();
 
-// A panel change can flip the trigger (the latch) as well as any shader value,
-// so both are refreshed on the same callback.
 const manager = new DataMoshManager(renderer, scene, camera, input, cut);
-createPane(() => { sync(); manager.updateSettings(); });
+
+// A panel change can flip the trigger (the latch) as well as any shader value,
+// so both are refreshed on the same callback. In the showcase there is no
+// panel, and therefore nothing that will ever call back: the defaults the
+// effect was tuned against are what runs.
+if (!showcase) createPane(() => { sync(); manager.updateSettings(); });
 
 // setPixelRatio has to stay here: the composer only resizes the renderer when
 // the CSS size changes, so moving the window to a different display would
@@ -95,6 +122,6 @@ const clock = new THREE.Clock();
 
 renderer.setAnimationLoop(() => {
   const delta = clock.getDelta();
-  for (const shot of SHOTS) shot.update(delta);
+  for (const shot of shots) shot.update(delta);
   manager.render(delta);
 });

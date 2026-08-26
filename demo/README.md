@@ -21,6 +21,13 @@ pnpm build
 pnpm preview
 ```
 
+## Showcase mode
+
+`?demo=true` cuts the six shots down to two — the torus knot and the sliding
+checker floor — and leaves the control panel out. It is what to embed or screen
+record: the panel is noise there, and four of the shots exist to make a point
+about *kinds* of motion that only the article needs made.
+
 ## Controls
 
 - Hold the pointer or Space to run the effect. `Hold Trigger` latches it on.
