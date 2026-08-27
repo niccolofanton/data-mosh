@@ -20,7 +20,7 @@ the chosen action, and the exact prose changes proposed for the article.
 | PUB-01 | GitHub repository is private | Keep private during review. | No action for now |
 | PUB-02 | Canonical/Open Graph/Twitter URLs point to a 404 | Replaced the old Vercel host with `https://datamosh.niccolofanton.dev`. | Done |
 | PUB-03 | Codrops article URL is still a placeholder | Keep `?p=` until Codrops publishes the article and assigns the final URL. | No action for now |
-| PUB-04 | Deleted article and media remain in Git history | Removed `article/` from all 15 commits and verified that no branch/tag object path contains it. The ignored local authoring copy remains available. | Done |
+| PUB-04 | Deleted article and media remain in Git history | Removed `article/` from all 15 commits, force-pushed the rewritten `main`, and verified that no branch/tag object path contains it. The ignored local authoring copy remains available. GitHub can still serve an unreachable old commit by a known SHA until server-side garbage collection; its support purge is reserved for sensitive data. | Branch clean; GitHub cache pending GC |
 | PUB-05 | Asset credits and licence scope are unclear | Added Poly Haven, Mixamo and Adobe terms; clarified that MIT applies to source code only. The room binary has no embedded provenance, so author/source confirmation remains required before the repository becomes public. | Documented; provenance pending |
 
 ## Article — exact replacements
