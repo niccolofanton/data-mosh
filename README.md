@@ -22,9 +22,10 @@ by [Niccolò Fanton](https://niccolofanton.dev).
 | [`full-project/`](full-project) | **The demo Codrops deploys.** The complete piece: a loaded room, a dancer rig, an image-based sky, a camera controller, the debug frame buffers and a live parameter panel. React + react-three-fiber. |
 | [`demo/`](demo) | The same pipeline with everything else taken away: plain three.js, six procedural shots, no downloaded assets. This is the code the article walks through, line for line. |
 
-Both projects are Vite + TypeScript and run the same way:
+Both projects are Vite + TypeScript. Choose one project directory first:
 
 ```bash
+cd demo              # or: cd full-project
 pnpm install
 pnpm dev
 ```
@@ -59,8 +60,17 @@ nine figures.
 
 ## Credits
 
-- Sky: `kloppenheim_puresky` from [Poly Haven](https://polyhaven.com), CC0.
+- Sky: `kloppenheim_puresky` from
+  [Poly Haven](https://polyhaven.com/license), CC0.
+- Dancer model and animation: `thriller.fbx` from
+  [Adobe Mixamo](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html).
+  Adobe permits royalty-free use in projects; the asset remains governed by
+  [Adobe's terms](https://www.adobe.com/legal/terms.html) and is not relicensed
+  under this repository's MIT licence.
+- Room: `backroom-transformed.glb`. The binary contains no upstream author or
+  licence metadata; confirm its provenance before making the repository public.
 
 ## Licence
 
-[MIT](LICENSE).
+The [MIT licence](LICENSE) applies to the source code. Third-party assets
+listed above are excluded.

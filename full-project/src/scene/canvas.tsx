@@ -116,7 +116,6 @@ export const Scene = () => {
         stencil: false,
         depth: true,
         outputColorSpace: THREE.SRGBColorSpace,
-        preserveDrawingBuffer: true,
       }}
       onCreated={(state) => {
         // The composer owns the frame, so r3f must not clear it.

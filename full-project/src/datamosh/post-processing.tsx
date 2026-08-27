@@ -10,10 +10,6 @@ import { moshInput } from "@/state/mosh-input";
  *
  * Read once at module scope. The bundle only ever runs in the browser, so
  * `window` is always there to read from.
- *
- * OR'd into the settings rather than written into the control's default,
- * because the checkbox still has to be able to turn the view back off - which
- * it could not do if the URL kept re-asserting itself through the default.
  */
 const DEBUG_PARAM = new URLSearchParams(window.location.search).get("debug") ?? "";
 

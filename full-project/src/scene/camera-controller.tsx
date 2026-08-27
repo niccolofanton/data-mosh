@@ -28,6 +28,15 @@ const shortestAngle = (from: number, to: number): number =>
 /** Keeps the camera clear of straight up / straight down, where yaw degenerates. */
 const MAX_PITCH = THREE.MathUtils.degToRad(80);
 
+/** The original controller was tuned per frame at 60 Hz. */
+const REFERENCE_FPS = 60;
+const MAX_FRAME_DELTA = 0.1;
+const MOVE_SPEED = 0.05 * REFERENCE_FPS;
+
+/** Preserves a per-frame easing coefficient at any refresh rate. */
+const deltaAdjustedEase = (easeAt60Fps: number, delta: number): number =>
+  1 - Math.pow(1 - easeAt60Fps, delta * REFERENCE_FPS);
+
 /**
  * Camera controller component that handles camera rotation
  */
@@ -65,8 +74,6 @@ export const CameraController = ({ autoRotate = false }: CameraControllerProps) 
     left: false,
     right: false,
   });
-  const moveSpeed = 0.05;
-
   // The camera's orientation, owned here instead of being read back from
   // `camera.rotation` every frame.
   //
@@ -398,8 +405,10 @@ export const CameraController = ({ autoRotate = false }: CameraControllerProps) 
     });
   }, [camera, centralPoint, scratch]);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (camera) {
+      // A suspended tab must not turn its first resumed frame into a teleport.
+      const frameDelta = Math.min(delta, MAX_FRAME_DELTA);
       const currentTime = Date.now();
       const timeSinceInit = currentTime - initializationTime.current;
 
@@ -419,16 +428,16 @@ export const CameraController = ({ autoRotate = false }: CameraControllerProps) 
         right.crossVectors(camera.up, forward).normalize();
 
         if (movement.current.forward) {
-          camera.position.addScaledVector(forward, moveSpeed);
+          camera.position.addScaledVector(forward, MOVE_SPEED * frameDelta);
         }
         if (movement.current.backward) {
-          camera.position.addScaledVector(forward, -moveSpeed);
+          camera.position.addScaledVector(forward, -MOVE_SPEED * frameDelta);
         }
         if (movement.current.left) {
-          camera.position.addScaledVector(right, moveSpeed / 2);
+          camera.position.addScaledVector(right, (MOVE_SPEED * frameDelta) / 2);
         }
         if (movement.current.right) {
-          camera.position.addScaledVector(right, -moveSpeed / 2);
+          camera.position.addScaledVector(right, (-MOVE_SPEED * frameDelta) / 2);
         }
       };
 
@@ -537,8 +546,11 @@ export const CameraController = ({ autoRotate = false }: CameraControllerProps) 
             isTouchMoving.current
           ? 0.05
           : 0.03;
+      const adjustedYawEase = deltaAdjustedEase(yawEase, frameDelta);
+      const adjustedPitchEase = deltaAdjustedEase(pitchEase, frameDelta);
 
-      yaw.current += shortestAngle(yaw.current, baseYaw + yawOffset) * yawEase;
+      yaw.current +=
+        shortestAngle(yaw.current, baseYaw + yawOffset) * adjustedYawEase;
       pitch.current +=
         (THREE.MathUtils.clamp(
           basePitch + pitchOffset,
@@ -546,7 +558,7 @@ export const CameraController = ({ autoRotate = false }: CameraControllerProps) 
           MAX_PITCH,
         ) -
           pitch.current) *
-        pitchEase;
+        adjustedPitchEase;
 
       camera.rotation.set(pitch.current, yaw.current, 0, "YXZ");
 
