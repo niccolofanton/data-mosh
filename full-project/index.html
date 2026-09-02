@@ -4,9 +4,9 @@
 <head>
   <meta charset="utf-8" />
   <!--
-      The scene is a full-screen WebGL canvas driven by pointer/scroll gestures,
-      so pinch-zoom is disabled on purpose to avoid fighting the camera controls.
-    -->
+        The scene is a full-screen WebGL canvas driven by pointer/scroll gestures,
+        so pinch-zoom is disabled on purpose to avoid fighting the camera controls.
+      -->
   <meta
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
@@ -47,10 +47,10 @@
   <meta name="twitter:image" content="https://datamosh.niccolofanton.dev/og-image.png" />
 
   <!--
-      The scene's only heavy asset. three.js' FileLoader fetches it with the
-      default CORS mode, so `as="fetch"` + `crossorigin="anonymous"` is what
-      makes the preload match the real request instead of duplicating it.
-    -->
+        The scene's only heavy asset. three.js' FileLoader fetches it with the
+        default CORS mode, so `as="fetch"` + `crossorigin="anonymous"` is what
+        makes the preload match the real request instead of duplicating it.
+      -->
   <link
         rel="preload"
         href="models/backroom-transformed.glb"
@@ -59,34 +59,34 @@
         crossorigin="anonymous" />
 
   <!--
-      That GLB declares KHR_draco_mesh_compression, and drei points its
-      DRACOLoader at gstatic - so parsing the file that gates the whole canvas
-      cannot begin until a wasm wrapper and a decoder land from a third origin,
-      behind a fresh DNS lookup and TLS handshake. Warming the connection takes
-      that round trip off the critical path.
-    -->
+        That GLB declares KHR_draco_mesh_compression, and drei points its
+        DRACOLoader at gstatic - so parsing the file that gates the whole canvas
+        cannot begin until a wasm wrapper and a decoder land from a third origin,
+        behind a fresh DNS lookup and TLS handshake. Warming the connection takes
+        that round trip off the critical path.
+      -->
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin="anonymous" />
 
   <!-- The rest of the scene: not render-blocking, but wanted early. -->
   <link rel="preload" href="hdri/kloppenheim-puresky-1k.hdr" as="fetch" crossorigin="anonymous" />
 
   <!--
-      Every style the demo has. Inline rather than a stylesheet: it is under
-      forty lines, and as a module import it became a separate render-blocking
-      request in front of a page whose whole job is to start a WebGL context.
+        Every style the demo has. Inline rather than a stylesheet: it is under
+        forty lines, and as a module import it became a separate render-blocking
+        request in front of a page whose whole job is to start a WebGL context.
 
-      The page is one full-viewport canvas. Nothing scrolls, nothing else paints.
-    -->
+        The page is one full-viewport canvas. Nothing scrolls, nothing else paints.
+      -->
   <style>
     /*
-        The frame, in the house style of the Singularity demo: a big bold
-        wordmark top left with the byline and the Codrops links under it, the
-        tags along the bottom, the settings link top right.
+          The frame, in the house style of the Singularity demo: a big bold
+          wordmark top left with the byline and the Codrops links under it, the
+          tags along the bottom, the settings link top right.
 
-        Helvetica throughout - display weight for the wordmark, regular for
-        everything else - and no webfont, so none of it is on the critical path
-        of a page whose whole job is to start a WebGL context.
-      */
+          Helvetica throughout - display weight for the wordmark, regular for
+          everything else - and no webfont, so none of it is on the critical path
+          of a page whose whole job is to start a WebGL context.
+        */
     :root {
       --frame-font: Helvetica, 'Helvetica Neue', Arial, sans-serif;
       --frame-inset: 20px;
@@ -108,11 +108,11 @@
       line-height: 18px;
       color: #fff;
       /*
-          The shot runs from a near-black corridor to a lit green floor, so a
-          flat colour is unreadable somewhere in every frame. The halo is what
-          Singularity uses, inverted for a dark scene: it gives the type its own
-          local contrast wherever it lands.
-        */
+            The shot runs from a near-black corridor to a lit green floor, so a
+            flat colour is unreadable somewhere in every frame. The halo is what
+            Singularity uses, inverted for a dark scene: it gives the type its own
+            local contrast wherever it lands.
+          */
       filter: drop-shadow(0 0 10px rgb(0 0 0 / 90%));
     }
 
@@ -150,11 +150,11 @@
     }
 
     /*
-        The top-left block: wordmark, byline, links. It exists so the frame's
-        column has exactly two items - this and the tags - and `space-between`
-        pushes those to opposite ends instead of spreading three separate lines
-        down the whole viewport.
-      */
+          The top-left block: wordmark, byline, links. It exists so the frame's
+          column has exactly two items - this and the tags - and `space-between`
+          pushes those to opposite ends instead of spreading three separate lines
+          down the whole viewport.
+        */
     .frame__head {
       display: block;
     }
@@ -182,10 +182,10 @@
     }
 
     /*
-        The gesture is the whole demo and nothing on screen says so, which is
-        how a visitor ends up looking at a still render and leaving. It hides
-        itself the first time the pointer goes down.
-      */
+          The gesture is the whole demo and nothing on screen says so, which is
+          how a visitor ends up looking at a still render and leaving. It hides
+          itself the first time the pointer goes down.
+        */
     .frame__hint {
       position: fixed;
       left: 50%;
@@ -232,13 +232,13 @@
     }
 
     /*
-        Preloader. The scene is gated on 8 MB of room, rig and sky, and until
-        those land the canvas is a black rectangle that looks broken rather
-        than busy. The overlay is markup in this file, not in the bundle, so it
-        paints on the first frame - before React or three.js have been parsed -
-        and `body.loading` is dropped once three's loading manager reports the
-        last asset in (see src/preloader.tsx).
-      */
+          Preloader. The scene is gated on 8 MB of room, rig and sky, and until
+          those land the canvas is a black rectangle that looks broken rather
+          than busy. The overlay is markup in this file, not in the bundle, so it
+          paints on the first frame - before React or three.js have been parsed -
+          and `body.loading` is dropped once three's loading manager reports the
+          last asset in (see src/preloader.tsx).
+        */
     .loader {
       position: fixed;
       inset: 0;
@@ -274,9 +274,9 @@
     }
 
     /*
-        `visibility` rather than `display`, so the fade has something to run on,
-        and `pointer-events` so the canvas is reachable the instant it is gone.
-      */
+          `visibility` rather than `display`, so the fade has something to run on,
+          and `pointer-events` so the canvas is reachable the instant it is gone.
+        */
     body:not(.loading) .loader {
       opacity: 0;
       visibility: hidden;
@@ -301,15 +301,15 @@
     }
 
     /*
-        Tweakpane's panel is 256px wide and unbounded in height, and this one
-        carries about fifty controls: with two folders open it runs off the
-        bottom of a laptop screen with no way to reach the rest. At 256px the
-        longer labels ("Keyframe Every (ms)") are truncated as well.
+          Tweakpane's panel is 256px wide and unbounded in height, and this one
+          carries about fifty controls: with two folders open it runs off the
+          bottom of a laptop screen with no way to reach the rest. At 256px the
+          longer labels ("Keyframe Every (ms)") are truncated as well.
 
-        The class is doubled to win on specificity without `!important`:
-        Tweakpane injects its own stylesheet when the Pane is constructed, i.e.
-        after this one, so at equal specificity its 256px would come last.
-      */
+          The class is doubled to win on specificity without `!important`:
+          Tweakpane injects its own stylesheet when the Pane is constructed, i.e.
+          after this one, so at equal specificity its 256px would come last.
+        */
     .tp-dfwv.tp-dfwv {
       width: 300px;
       max-height: calc(100dvh - 16px);
