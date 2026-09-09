@@ -1,3 +1,4 @@
+import '@niccolofanton/driftpane/theme.css';
 import * as THREE from 'three';
 import { DataMoshManager } from './datamosh';
 import { controls, createPane } from './debug';

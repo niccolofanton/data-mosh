@@ -76,6 +76,17 @@ export const PostProcessing = () => {
     const manager = new DataMoshManager(gl, scene, camera, readSettings());
     managerRef.current = manager;
 
+    // The latch is an input, not part of the settings object, so `readSettings`
+    // above does not carry it. The panel is built before React mounts, so a
+    // latch restored from localStorage was written into `controls` while no
+    // subscriber existed to hear it - measured: zero `subscribeControls`
+    // notifications between boot and this effect. Driftpane's `onStateApplied`
+    // is not the place for it either: it fires per state application, and this
+    // effect re-runs (and its cleanup drops the latch) whenever the renderer,
+    // scene or camera is replaced, with no state application in between. A
+    // mount-time read is what covers both.
+    moshInput.setLatched(controls.latch);
+
     const unsubscribe = subscribeControls(() => {
       // The latch is the one control that does not belong to the settings
       // object: it is an input, and it goes to the store the manager polls.

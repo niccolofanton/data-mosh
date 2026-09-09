@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { createDriftpane } from '@niccolofanton/driftpane';
 import { Pane } from 'tweakpane';
 
 /**
@@ -113,6 +114,11 @@ export const subscribeControls = (listener: () => void): (() => void) => {
   };
 };
 
+/** Notifies every subscriber. Copied first, so unsubscribing mid-loop is safe. */
+const notify = (): void => {
+  for (const listener of [...listeners]) listener();
+};
+
 /**
  * A single control as React state, for the two that have to be: `showPerf`
  * mounts a component, `autoRotate` is a prop. Everything else is read
@@ -188,9 +194,14 @@ export const createControlPane = (): (() => void) => {
   // One listener on the root: Tweakpane bubbles every binding's change up to
   // the pane, and it has already written the new value into `controls` by the
   // time this runs.
-  pane.on('change', () => {
-    for (const listener of [...listeners]) listener();
-  });
+  pane.on('change', notify);
+
+  // Persistence, dragging and presets, added once the pane is fully built.
+  // A restore goes through Tweakpane's `importState()`, which re-fires the
+  // binding `change` handlers for every value that actually differs; that
+  // bubbles to the root listener above, so `notify` runs on its own and
+  // Driftpane refreshes the widgets. No re-apply pass is needed here.
+  createDriftpane(pane, { storageNamespace: 'datamosh-fullproject', width: 300 });
 
   return () => pane.dispose();
 };

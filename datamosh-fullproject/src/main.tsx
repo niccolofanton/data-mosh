@@ -1,3 +1,5 @@
+import '@niccolofanton/driftpane/theme.css';
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 

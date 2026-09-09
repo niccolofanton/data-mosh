@@ -21,6 +21,7 @@
     "serve": "vite --host localhost"
   },
   "dependencies": {
+    "@niccolofanton/driftpane": "^1.2.0",
     "@react-three/drei": "^9.121.4",
     "@react-three/fiber": "^8.17.14",
     "postprocessing": "^6.36.7",

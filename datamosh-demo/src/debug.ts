@@ -1,3 +1,4 @@
+import { createDriftpane } from '@niccolofanton/driftpane';
 import { Pane } from 'tweakpane';
 
 /**
@@ -94,6 +95,13 @@ export const createPane = (onChange: () => void): void => {
   // One listener on the root: Tweakpane bubbles every binding's change up to the
   // pane, and has already written the new value into `controls` by then.
   pane.on('change', onChange);
+
+  // Persistence, dragging and presets, added once the pane is fully built.
+  // A restore goes through Tweakpane's `importState()`, which re-fires the
+  // binding `change` handlers for every value that actually differs, so
+  // `onChange` above runs on its own and Driftpane refreshes the widgets - no
+  // re-apply pass is needed here.
+  createDriftpane(pane, { storageNamespace: 'datamosh-demo', width: 300 });
 };
 
 // When this module is replaced, the pane it built is orphaned on screen.
