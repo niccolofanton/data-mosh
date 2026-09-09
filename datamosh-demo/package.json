@@ -1,7 +1,8 @@
 {
-  "name": "data-mosh-demo",
+  "name": "datamosh-demo",
+  "description": "Inter-frame decode loop in WebGL: previous frame warped by motion vectors plus residual, applied to a torus knot.",
   "private": true,
-  "packageManager": "pnpm@10.9.0",
+  "packageManager": "pnpm@10.11.1",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },
@@ -9,7 +10,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "serve": "vite --host localhost"
   },
   "dependencies": {
     "postprocessing": "^6.36.7",
@@ -21,5 +23,12 @@
     "@types/three": "^0.173.0",
     "typescript": "^5",
     "vite": "^8.2.1"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^24.0.0",
+      "onFail": "download"
+    }
   }
 }

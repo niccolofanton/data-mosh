@@ -7,8 +7,8 @@ the chosen action, and the exact prose changes proposed for the article.
 
 | ID | Feedback | Action | Status |
 | --- | --- | --- | --- |
-| REP-01 | No CI, tests, or lint in `demo/` | Accepted for this submission; no change requested. | No action |
-| REP-02 | Root README does not say which project directory to enter | Added `cd demo` / `cd full-project` before the pnpm commands. | Done |
+| REP-01 | No CI, tests, or lint in `datamosh-demo/` | Accepted for this submission; no change requested. | No action |
+| REP-02 | Root README does not say which project directory to enter | Added `cd datamosh-demo` / `cd datamosh-fullproject` before the pnpm commands. | Done |
 | REP-03 | Node and pnpm versions are not declared | Added `packageManager: pnpm@10.9.0` and Vite 8's supported Node range to both projects. | Done |
 | REP-04 | Three high-severity dev-only audit advisories | Pinned transitive `brace-expansion` to `5.0.9` with a pnpm override; full audit is clean. | Done |
 | REP-05 | `.gitignore` describes `article/` twice | The comments describe the intended handoff and the later local exclusion; retained as requested. | No action |

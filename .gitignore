@@ -42,7 +42,7 @@ yarn-error.log*
 # scratch space for the Codrops editorial research (sitemaps, article index,
 # per-article analyses). The deliverable it produced is committed under docs/;
 # everything under here is intermediate.
-full-project/archive/codrops-research/
+datamosh-fullproject/archive/codrops-research/
 
 # rendered from docs/CODROPS-ARTICLE.md; the Markdown is the source of truth
 **/*.pdf
@@ -55,16 +55,16 @@ article/html/record/raw/
 article/submission/
 
 # --- Local working material, deliberately not shared ---------------------
-# The repo handed to Codrops is: full-project/, demo/, article/, README, LICENSE.
+# The repo handed to Codrops is: datamosh-fullproject/, datamosh-demo/, article/, README, LICENSE.
 # Everything below is authoring scaffolding that would only add noise.
 
-# The r3f original, superseded by demo/ (the vanilla rewrite the article uses).
+# The r3f original, superseded by datamosh-demo/ (the vanilla rewrite the article uses).
 demo-react/
 
 # Screenshots taken while drafting the figures.
 /*.png
 # ...except the ones the demo itself ships.
-!full-project/public/*.png
+!datamosh-fullproject/public/*.png
 
 # Editorial scratch: shot dump and review notes.
 /shots.json

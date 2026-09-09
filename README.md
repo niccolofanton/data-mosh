@@ -21,13 +21,13 @@ by [Niccolò Fanton](https://niccolofanton.dev).
 
 | Folder | What it is |
 | --- | --- |
-| [`full-project/`](full-project) | **The demo Codrops deploys.** The complete piece: a loaded room, a dancer rig, an image-based sky, a camera controller, the debug frame buffers and a live parameter panel. React + react-three-fiber. |
-| [`demo/`](demo) | The same pipeline with everything else taken away: plain three.js, six procedural shots, no downloaded assets. This is the code the article walks through, line for line. |
+| [`datamosh-fullproject/`](datamosh-fullproject) | **The demo Codrops deploys.** The complete piece: a loaded room, a dancer rig, an image-based sky, a camera controller, the debug frame buffers and a live parameter panel. React + react-three-fiber. |
+| [`datamosh-demo/`](datamosh-demo) | The same pipeline with everything else taken away: plain three.js, six procedural shots, no downloaded assets. This is the code the article walks through, line for line. |
 
 Both projects are Vite + TypeScript. Choose one project directory first:
 
 ```bash
-cd demo              # or: cd full-project
+cd datamosh-demo     # or: cd datamosh-fullproject
 pnpm install
 pnpm dev
 ```
@@ -38,13 +38,13 @@ host root.
 
 ## Which one to read
 
-Read `demo/` first. It is the article's argument in about 1,200 lines with
+Read `datamosh-demo/` first. It is the article's argument in about 1,200 lines with
 nothing in the way: `main.ts` owns the renderer and the shot schedule, `scenes.ts` is six
 scenes chosen for the *kind* of motion each one produces, and `datamosh/` is
 the pipeline — a velocity pass, a feedback loop, and one fragment shader where
 the decode actually happens.
 
-`full-project/` is the same `datamosh/` folder, wrapped in the scene the hero
+`datamosh-fullproject/` is the same `datamosh/` folder, wrapped in the scene the hero
 video shows. It is the more interesting thing to *look* at and the harder thing
 to read, because most of its extra code is about the room, the dancers and the
 camera, not about the effect.
