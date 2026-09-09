@@ -1,5 +1,7 @@
 # Feeding a Decoder the Wrong Frame
 
+![Feeding a Decoder the Wrong Frame](docs/preview.gif)
+
 A real-time datamosh effect in WebGL. Not a glitch filter over a finished
 render: an actual inter-frame decoder loop, built out of the pieces a video
 codec is made of — motion vectors, macroblocks, residuals — and then fed the
