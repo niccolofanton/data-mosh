@@ -24,12 +24,5 @@
     "@types/three": "^0.173.0",
     "typescript": "^5",
     "vite": "^8.2.1"
-  },
-  "devEngines": {
-    "runtime": {
-      "name": "node",
-      "version": "^24.0.0",
-      "onFail": "download"
-    }
   }
 }
