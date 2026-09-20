@@ -2,7 +2,7 @@
   "name": "datamosh-demo",
   "description": "Inter-frame decode loop in WebGL: previous frame warped by motion vectors plus residual, applied to a torus knot.",
   "private": true,
-  "packageManager": "pnpm@10.11.1",
+  "packageManager": "pnpm@12.5.1",
   "engines": {
     "node": "^22.12.0 || >=24.0.0"
   },
