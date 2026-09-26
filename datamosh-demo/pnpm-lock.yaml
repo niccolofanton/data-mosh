@@ -167,8 +167,8 @@ importers:
   .:
     dependencies:
       '@niccolofanton/driftpane':
-        specifier: ^1.3.0
-        version: 1.3.0(tweakpane@4.0.5)
+        specifier: ^1.4.2
+        version: 1.4.2(tweakpane@4.0.5)
       postprocessing:
         specifier: ^6.36.7
         version: 6.39.4(three@0.173.0)
@@ -194,8 +194,8 @@ importers:
 
 packages:
 
-  '@niccolofanton/driftpane@1.3.0':
-    resolution: {integrity: sha512-1sDJEBOPPwLvXrXgbneQO/NQfMYIeqNTW6zW4YcTAACmt1iHRuSWM+93n+1XHWqrxYkI19f36t68/eI9Oh+gkQ==}
+  '@niccolofanton/driftpane@1.4.2':
+    resolution: {integrity: sha512-htbbB2C+S5rZ1kx0QEqAvWvlkJQ0uf/ApQgcKlUB4zod13+AEWoxizlvqqIa12WvM6d0/ukclGzaVNtgPa1CyA==}
     engines: {node: '>=18'}
     peerDependencies:
       tweakpane: ^4.0.0
@@ -492,7 +492,7 @@ packages:
 
 snapshots:
 
-  '@niccolofanton/driftpane@1.3.0(tweakpane@4.0.5)':
+  '@niccolofanton/driftpane@1.4.2(tweakpane@4.0.5)':
     dependencies:
       tweakpane: 4.0.5
 
